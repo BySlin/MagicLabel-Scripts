@@ -24,12 +24,14 @@ load_yolov5_success = False
 load_sahi_success = False
 
 try:
-  from ultralytics import FastSAM, SAM
+  from ultralytics import FastSAM, SAM, YOLOE, YOLOWorld
 
   load_ultralytics_success = True
 except ImportError:
   FastSAM = None
   SAM = None
+  YOLOE = None
+  YOLOWorld = None
   load_ultralytics_success = False
 
 try:
@@ -45,6 +47,16 @@ try:
   load_sahi_success = True
 except ImportError:
   load_sahi_success = False
+
+try:
+  from sam2.build_sam import build_sam2_video_predictor, build_sam2
+  from sam2.sam2_video_predictor import SAM2VideoPredictor
+  from sam2.sam2_image_predictor import SAM2ImagePredictor
+except ImportError:
+  build_sam2 = None
+  build_sam2_video_predictor = None
+  SAM2VideoPredictor = None
+  SAM2ImagePredictor = None
 
 # SSE事件
 sse_events = ServerSentEvents()
@@ -68,8 +80,11 @@ export_process: Union[ProcessMsgThread, None] = None
 model_predict_process: Union[ProcessMsgThread, None] = None
 
 # SAM模型
-sam_model: Union[FastSAM, SAM, None] = None
+sam_model: Union[FastSAM, SAM, YOLOE, YOLOWorld, None] = None
 
+# SAM2模型
+sam2_video_predictor: Union[SAM2VideoPredictor, None] = None
+sam2_image_predictor: Union[SAM2ImagePredictor, None] = None
 
 def initialize():
   global sse_events, manager, predict_msg_queue, export_msg_queue, model_predict_msg_queue, predict_process, predict_process_conn, sam_model, load_ultralytics_success
@@ -115,4 +130,23 @@ def set_sam_model(model_path):
     elif "sam_" in stem or "sam2_" in stem or "sam2.1_" in stem or "mobile_" in stem:
       sam_model = SAM(model_path)
       return True
+    elif "yoloe" in stem:
+      sam_model = YOLOE(model_path)
+      return True
+  return False
+
+
+def set_sam2_video_model(config_file, model_path):
+  global sam2_video_predictor
+  if build_sam2_video_predictor is not None:
+    sam2_video_predictor = build_sam2_video_predictor(config_file, model_path)
+    return True
+  return False
+
+
+def set_sam2_image_model(config_file, model_path):
+  global sam2_image_predictor
+  if build_sam2 is not None:
+    sam2_image_predictor = build_sam2(config_file, model_path)
+    return True
   return False

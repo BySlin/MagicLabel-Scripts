@@ -1,3 +1,4 @@
+import base64
 import json
 import os.path
 import threading
@@ -7,7 +8,7 @@ import common
 from lib.SSE import create_sse_msg
 from lib.SimpleHttpServer import Router
 from lib.process_msg_thread import ProcessMsgThread
-from lib.utils import is_blank
+from lib.utils import is_blank, is_not_blank
 from yolo_task import export_task_process, model_predict_task_process
 
 yolo_router = Router("/api/yolo")
@@ -192,9 +193,6 @@ def set_sam_model(handler):
   if is_blank(model):
     return {"success": False, "msg": "运行参数不能为空"}
 
-  if not os.path.isabs(model):
-    model = os.path.join(common.models_directory, model)
-
   if common.set_sam_model(model):
     return {"success": True, "msg": "切换模型成功"}
   else:
@@ -204,9 +202,17 @@ def set_sam_model(handler):
 @yolo_router.register("/sam_model_predict", method="POST")
 def sam_model_predict(handler):
   requestBody = handler.read_json()
+  # 工作目录
+  cwd = requestBody["cwd"]
+  # 输入图片路径
   source = requestBody["source"]
+  # 输入参数
   data = requestBody["data"]
+  # 单目标检测还是多目标检测
   single = requestBody["single"]
+
+  if is_not_blank(cwd):
+    os.chdir(cwd)
 
   if is_blank(source):
     return {"success": False, "msg": "运行参数不能为空"}
@@ -214,11 +220,16 @@ def sam_model_predict(handler):
   if common.sam_model is None:
     return {"success": False, "msg": "SAM模型未加载"}
 
+  if single is None:
+    single = True
+
   try:
-    from ultralytics import FastSAM, SAM
+    from ultralytics import FastSAM, SAM, YOLOE, YOLOWorld
   except ImportError:
     FastSAM = None
     SAM = None
+    YOLOE = None
+    YOLOWorld = None
 
   bboxes = []
   points = []
@@ -244,29 +255,35 @@ def sam_model_predict(handler):
   if len(labels) == 0:
     labels = None
 
-  if texts is not None:
-    results = common.sam_model(
-      source=source, texts=texts, save=False, verbose=False
-    )
-  else:
-    if isinstance(common.sam_model, SAM):
+  if isinstance(common.sam_model, FastSAM) or isinstance(common.sam_model, SAM):
+    if texts is not None:
       results = common.sam_model(
-        source=source,
-        bboxes=[bboxes] if bboxes is not None else None,
-        points=[points] if single else points,
-        labels=[labels] if single else labels,
-        save=False,
-        verbose=False,
+        source=source, texts=texts, save=False, verbose=False
       )
     else:
-      results = common.sam_model(
-        source=source,
-        bboxes=bboxes,
-        points=points,
-        labels=labels,
-        save=False,
-        verbose=False,
-      )
+      if isinstance(common.sam_model, SAM):
+        results = common.sam_model(
+          source=source,
+          bboxes=[bboxes] if bboxes is not None else None,
+          points=[points] if single else points,
+          labels=[labels] if single else labels,
+          save=False,
+          verbose=False,
+        )
+      else:
+        results = common.sam_model(
+          source=source,
+          bboxes=bboxes,
+          points=points,
+          labels=labels,
+          save=False,
+          verbose=False,
+        )
+  elif isinstance(common.sam_model, YOLOE):
+    names = [texts]
+    common.sam_model.set_classes(names, common.sam_model.get_text_pe(names))
+    results = common.sam_model.predict(source=source, save=False, verbose=False)
+
   boxes = []
   masks = []
   for result in results:
@@ -275,3 +292,155 @@ def sam_model_predict(handler):
       boxes.append(box.xywh[0].tolist())
 
   return {"success": True, "data": {"boxes": boxes, "masks": masks}}
+
+
+@yolo_router.register("/get_video_frame")
+def get_video_frame(handler):
+  video_path = handler.get_query_param("video_path")
+  frame_index = handler.get_query_param("frame_index")
+  if is_blank(video_path) or is_blank(frame_index):
+    return {"success": False, "msg": "运行参数不能为空"}
+  frame_index = int(frame_index)
+
+  try:
+    import cv2
+  except ImportError:
+    return {"success": False, "msg": "未安装opencv-python"}
+
+  cap = cv2.VideoCapture(video_path)
+  if not cap.isOpened():
+    return {"success": False, "msg": "打开视频文件失败"}
+
+  frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+
+  # 设置帧的位置，0为第一帧
+  cap.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
+
+  ret, frame = cap.read()
+  if not ret:
+    print(f"Error: could not read frame at index {frame_index}")
+    cap.release()
+    return {"success": False, "msg": "读取视频帧失败"}
+
+  cap.release()
+
+  # 转换为base64编码
+  _, buffer = cv2.imencode(".jpg", frame)
+  frame_base64 = base64.b64encode(buffer).decode("utf-8")
+  return {
+    "success": True,
+    "data": {
+      "image": "data:/image/jpeg;base64," + frame_base64,
+      "frameCount": frame_count,
+    }}
+
+
+@yolo_router.register("/set_sam2_video_model", method="POST")
+def set_sam2_video_model(handler):
+  requestBody = handler.read_json()
+  model = requestBody["model"]
+  config = requestBody["config"]
+  if is_blank(model) or is_blank(config):
+    return {"success": False, "msg": "运行参数不能为空"}
+
+  if common.set_sam2_video_model(config, model):
+    return {"success": True, "msg": "切换模型成功"}
+  else:
+    return {"success": False, "msg": "设置SAM模型失败"}
+
+
+def mask_to_bbox_normalized(mask, img_width, img_height):
+  """
+  将二值mask转换成归一化的 (center_x, center_y, width, height) 边界框，归一化基于原图尺寸。
+
+  参数:
+      mask: np.ndarray, shape=(H_mask, W_mask), dtype=bool或其他，表示掩码
+      img_width: int, 原始图片宽度
+      img_height: int, 原始图片高度
+
+  返回:
+      bbox: tuple (center_x, center_y, width, height)，均归一化到[0,1]
+            如果mask为空，返回None
+  """
+  try:
+    import numpy as np
+  except ImportError:
+    return None
+
+  mask = mask.astype(bool)
+  rows = np.any(mask, axis=1)
+  cols = np.any(mask, axis=0)
+
+  if not rows.any() or not cols.any():
+    return None
+
+  y_min, y_max = np.where(rows)[0][[0, -1]]
+  x_min, x_max = np.where(cols)[0][[0, -1]]
+
+  width_mask = x_max - x_min + 1
+  height_mask = y_max - y_min + 1
+
+  center_x_mask = x_min + width_mask / 2
+  center_y_mask = y_min + height_mask / 2
+
+  # 注意：mask对应原图的大小可能不一样，这里默认mask是对原图大小的裁剪或缩放
+  # 需要知道mask相对于原图的位置和缩放关系，否则无法准确映射
+
+  # 如果mask是原图大小掩码，直接归一化
+  center_x_norm = center_x_mask / img_width
+  center_y_norm = center_y_mask / img_height
+  width_norm = width_mask / img_width
+  height_norm = height_mask / img_height
+
+  return center_x_norm, center_y_norm, width_norm, height_norm
+
+@yolo_router.register("/sam2_video_predict", method="POST")
+def sam2_video_predict(handler):
+  requestBody = handler.read_json()
+  # 输入图片路径
+  folderPath = requestBody["folderPath"]
+  fileIndex = requestBody["fileIndex"]
+  clsIndex = requestBody["clsIndex"]
+  box = requestBody["box"]
+
+  if is_blank(folderPath):
+    return {"success": False, "msg": "运行参数不能为空"}
+
+  if common.sam2_video_predictor is None:
+    return {"success": False, "msg": "SAM模型未加载"}
+
+  try:
+    from sam2_utils import init_state
+  except ImportError:
+    return {"success": False, "msg": "未安装SAM2"}
+
+  inference_state = init_state(predictor=common.sam2_video_predictor,
+                               video_path=os.path.normpath(folderPath))
+  common.sam2_video_predictor.reset_state(inference_state)
+
+  video_width = inference_state["video_width"]
+  video_height = inference_state["video_height"]
+  img_prefix = inference_state["img_prefix"]
+
+  _, out_obj_ids, out_mask_logits = common.sam2_video_predictor.add_new_points_or_box(
+    inference_state=inference_state,
+    frame_idx=fileIndex,
+    obj_id=clsIndex,
+    box=box
+  )
+
+  # 收集所有帧的分割结果
+  for out_frame_idx, out_obj_ids, out_mask_logits in common.sam2_video_predictor.propagate_in_video(inference_state):
+    if out_frame_idx == fileIndex:
+      continue
+    for i, out_obj_id in enumerate(out_obj_ids):
+      mask = (out_mask_logits[i] > 0.0).cpu().numpy()
+      h, w = mask.shape[-2:]
+      mask = mask.reshape(h, w, 1)
+      bbox = mask_to_bbox_normalized(mask, video_width, video_height)
+      if bbox is not None:
+        with open(f"{folderPath}/DetectLabels/{img_prefix}_{out_frame_idx}.txt", "a") as f:
+          f.write(f"{out_obj_id} {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}\n")
+
+  common.sam2_video_predictor.reset_state(inference_state)
+  return {"success": True, "msg": "操作成功"}

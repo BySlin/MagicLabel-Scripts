@@ -415,7 +415,7 @@ def predict_task_process(conn, msg_queue):
               break
 
       msg_queue.put(
-        create_sse_msg("on_predict_end", {"mode": mode, "isStop": is_stop})
+        create_sse_msg("on_predict_end", {"mode": mode, "isStop": is_stop, "singleFile": image_len == 1})
       )
     except:
       traceback_info = traceback.format_exc()
@@ -546,6 +546,11 @@ def export_task_process(framework, output_path, command, msg_queue):
   if framework == "ultralytics":
     model = YOLO(os.path.basename(model_path))
     try:
+      def on_export_start_callback(export_self):
+        if hasattr(export_self, "metadata") and export_self.metadata:
+          export_self.metadata["ExportUtils"] = "MagicLabel"
+
+      model.add_callback('on_export_start', on_export_start_callback)
       output_model_path = model.export(**params)
       if os.path.normpath(model_dir) != os.path.normpath(output_path):
         shutil.move(output_model_path, output_path)

@@ -1,6 +1,7 @@
 import http.server
 import json
 import socketserver
+from urllib.parse import urlparse, parse_qs
 
 
 class Router:
@@ -22,6 +23,7 @@ class Router:
 
 class RequestHandler(http.server.SimpleHTTPRequestHandler):
   def __init__(self, *args, routers=None, **kwargs):
+    self.query_params = {}
     self.routers = routers or []
     super().__init__(*args, **kwargs)
 
@@ -38,7 +40,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
     self.handle_request("POST")
 
   def handle_request(self, method):
-    path = self.path
+    parsed_url = urlparse(self.path)
+    path = parsed_url.path
+    query_params = parse_qs(parsed_url.query)  # 解析参数
+    self.query_params = query_params
     for router in self.routers:
       route = router.match_route(path, method)
       if route:
@@ -46,7 +51,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         if callable(response):
           response(self)
         else:
-          self.send_json(response)
+          if response is not None:
+            self.send_json(response)
         return
     self.send_json({"success": False, "msg": "Not found"}, status=404)
 
@@ -70,6 +76,11 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
       self.send_error_json("Invalid JSON", status=400)
       return None
 
+  def get_query_param(self, key, default=None):
+    values = self.query_params.get(key)
+    if values:
+      return values[0]
+    return default
 
 class SimpleHttpServer(socketserver.ThreadingTCPServer):
   # Enable the reuse address option
