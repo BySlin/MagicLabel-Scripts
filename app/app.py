@@ -16,9 +16,9 @@ def start_web_server():
   global httpServer
   from yolo import yolo_router
 
-  print("AutoLabelServerLoaded")
   httpServer = createSimpleHttpServer([yolo_router], "localhost", 50018)
   with httpServer:
+    print("MagicLabelServerLoaded")
     httpServer.daemon_threads = True
     httpServer.serve_forever()
 

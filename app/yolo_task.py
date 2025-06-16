@@ -93,7 +93,7 @@ def parse_args(command: str):
       DEFAULT_CFG,
     )
   except ImportError:
-    print("AutoLabel_Import_Yolo_Error")
+    print("MagicLabel_Import_Yolo_Error")
     return None
 
   args = re.findall(r'(\w+="[^"]*"|\w+=\S+)', command)
@@ -153,7 +153,7 @@ def predict_task_process(conn, msg_queue):
       )
     )
   except ImportError:
-    sys.__stdout__.write("AutoLabel_Import_Yolo_Error\n")
+    sys.__stdout__.write("MagicLabel_Import_Yolo_Error\n")
     msg_queue.put(create_sse_msg("on_env_error"))
     return
 
@@ -184,7 +184,7 @@ def predict_task_process(conn, msg_queue):
 
   # 如果ultralytics和yolov5都没有加载成功
   if not load_ultralytics_success and not load_yolov5_success:
-    sys.__stdout__.write("AutoLabel_Import_Yolo_Error\n")
+    sys.__stdout__.write("MagicLabel_Import_Yolo_Error\n")
     return
 
   # 加载sahi是否成功
@@ -202,7 +202,7 @@ def predict_task_process(conn, msg_queue):
     UltralyticsDetectionModel = None
     Yolov5DetectionModel = None
     get_sliced_prediction = None
-    sys.__stdout__.write("AutoLabel_Import_Sahi_Error\n")
+    sys.__stdout__.write("MagicLabel_Import_Sahi_Error\n")
 
   def predict_thread(
     framework_: str,
@@ -213,7 +213,7 @@ def predict_task_process(conn, msg_queue):
     predict_params,
     sahi_settings,
   ):
-    sys.__stdout__.write("AutoLabel_Predict_Start\n")
+    sys.__stdout__.write("MagicLabel_Predict_Start\n")
     try:
       os.chdir(cwd)
 
@@ -421,7 +421,7 @@ def predict_task_process(conn, msg_queue):
       traceback_info = traceback.format_exc()
       print(traceback_info)
       msg_queue.put(create_sse_msg("on_predict_error"))
-    sys.__stdout__.write("AutoLabel_Predict_End\n")
+    sys.__stdout__.write("MagicLabel_Predict_End\n")
 
   model: Union[
     YOLO, AutoShape, UltralyticsDetectionModel, Yolov5DetectionModel, None
@@ -481,7 +481,7 @@ def predict_task_process(conn, msg_queue):
         params = parse_args(event_data["command"])
 
         if params is None:
-          sys.__stdout__.write("AutoLabel_Import_Yolo_Error\n")
+          sys.__stdout__.write("MagicLabel_Import_Yolo_Error\n")
         else:
           is_predicting = True
           threading.Thread(
@@ -505,7 +505,7 @@ def export_task_process(framework, output_path, command, msg_queue):
 
   params = parse_args(command)
   if params is None:
-    sys.__stdout__.write("AutoLabel_Import_Yolo_Error\n")
+    sys.__stdout__.write("MagicLabel_Import_Yolo_Error\n")
     return
 
   try:
@@ -526,18 +526,18 @@ def export_task_process(framework, output_path, command, msg_queue):
 
   # 如果ultralytics和yolov5都没有加载成功
   if not load_ultralytics_success and not load_yolov5_success:
-    sys.__stdout__.write("AutoLabel_Import_Yolo_Error\n")
+    sys.__stdout__.write("MagicLabel_Import_Yolo_Error\n")
     return
 
   if framework == "ultralytics" and not load_ultralytics_success:
-    sys.__stdout__.write("AutoLabel_Import_Yolo_Error\n")
+    sys.__stdout__.write("MagicLabel_Import_Yolo_Error\n")
     return
 
   if framework == "yolov5" and not load_yolov5_success:
-    sys.__stdout__.write("AutoLabel_Import_Yolo_Error\n")
+    sys.__stdout__.write("MagicLabel_Import_Yolo_Error\n")
     return
 
-  sys.__stdout__.write("AutoLabel_Export_Start\n")
+  sys.__stdout__.write("MagicLabel_Export_Start\n")
   msg_queue.put(create_sse_msg("on_export_start"))
   model_path = params.pop("model")
   model_dir = os.path.dirname(model_path)
@@ -575,7 +575,7 @@ def export_task_process(framework, output_path, command, msg_queue):
       traceback_info = traceback.format_exc()
       print(f"{traceback_info}")
       msg_queue.put(create_sse_msg("on_export_error"))
-  sys.__stdout__.write("AutoLabel_Export_End\n")
+  sys.__stdout__.write("MagicLabel_Export_End\n")
   msg_queue.put(create_sse_msg("on_export_end", {"isStop": False}))
 
 def model_predict_task_process(framework, source, command, msg_queue):
@@ -584,7 +584,7 @@ def model_predict_task_process(framework, source, command, msg_queue):
 
   params = parse_args(command)
   if params is None:
-    sys.__stdout__.write("AutoLabel_Import_Yolo_Error\n")
+    sys.__stdout__.write("MagicLabel_Import_Yolo_Error\n")
     return
 
   try:
@@ -605,18 +605,18 @@ def model_predict_task_process(framework, source, command, msg_queue):
 
   # 如果ultralytics和yolov5都没有加载成功
   if not load_ultralytics_success and not load_yolov5_success:
-    sys.__stdout__.write("AutoLabel_Import_Yolo_Error\n")
+    sys.__stdout__.write("MagicLabel_Import_Yolo_Error\n")
     return
 
   if framework == "ultralytics" and not load_ultralytics_success:
-    sys.__stdout__.write("AutoLabel_Import_Yolo_Error\n")
+    sys.__stdout__.write("MagicLabel_Import_Yolo_Error\n")
     return
 
   if framework == "yolov5" and not load_yolov5_success:
-    sys.__stdout__.write("AutoLabel_Import_Yolo_Error\n")
+    sys.__stdout__.write("MagicLabel_Import_Yolo_Error\n")
     return
 
-  sys.__stdout__.write("AutoLabel_Model_Predict_Start\n")
+  sys.__stdout__.write("MagicLabel_Model_Predict_Start\n")
   msg_queue.put(create_sse_msg("on_model_predict_start"))
 
   task = params.pop("task")
@@ -634,5 +634,5 @@ def model_predict_task_process(framework, source, command, msg_queue):
     traceback_info = traceback.format_exc()
     print(f"{traceback_info}")
     msg_queue.put(create_sse_msg("on_model_predict_error"))
-  sys.__stdout__.write("AutoLabel_Model_Predict_End\n")
+  sys.__stdout__.write("MagicLabel_Model_Predict_End\n")
   msg_queue.put(create_sse_msg("on_model_predict_end", {"isStop": False}))

@@ -6,7 +6,7 @@ import time
 
 import common
 from lib.SSE import create_sse_msg
-from lib.SimpleHttpServer import Router
+from lib.SimpleHttpServer import Router, RequestHandler
 from lib.process_msg_thread import ProcessMsgThread
 from lib.utils import is_blank, is_not_blank
 from yolo_task import export_task_process, model_predict_task_process
@@ -15,7 +15,7 @@ yolo_router = Router("/api/yolo")
 
 
 @yolo_router.register("/sse_events")
-def sse_events(handler):
+def sse_events(handler: RequestHandler):
   def send_status():
     time.sleep(0.5)
     common.sse_events.send_raw(
@@ -37,7 +37,7 @@ def sse_events(handler):
 
 
 @yolo_router.register("/set_predict_model", method="POST")
-def set_predict_model(handler):
+def set_predict_model(handler: RequestHandler):
   requestBody = handler.read_json()
   model = requestBody["model"]
   framework = requestBody["framework"]
@@ -61,7 +61,7 @@ def set_predict_model(handler):
 
 
 @yolo_router.register("/predict", method="POST")
-def predict(handler):
+def predict(handler: RequestHandler):
   requestBody = handler.read_json()
   command = requestBody["command"]
   cwd = requestBody["cwd"]
@@ -92,7 +92,7 @@ def predict(handler):
 
 
 @yolo_router.register("/stop_predict")
-def stop_predict(handler):
+def stop_predict(handler: RequestHandler):
   common.predict_main_conn.send(
     json.dumps(
       {
@@ -104,7 +104,7 @@ def stop_predict(handler):
   return {"success": True, "msg": "操作成功"}
 
 @yolo_router.register("/export", method="POST")
-def export(handler):
+def export(handler: RequestHandler):
   requestBody = handler.read_json()
   command = requestBody["command"]
   outputPath = requestBody["outputPath"]
@@ -134,18 +134,18 @@ def export(handler):
 
 
 @yolo_router.register("/stop_export")
-def stop_export(handler):
+def stop_export(handler: RequestHandler):
   if common.export_process is not None and common.export_process.is_alive():
     common.export_process.terminate()
     common.export_process = None
 
   common.sse_events.send_raw(create_sse_msg("on_export_end", {"isStop": True}))
-  print("AutoLabel_Export_End")
+  print("MagicLabel_Export_End")
   return {"success": True, "msg": "操作成功"}
 
 
 @yolo_router.register("/model_predict", method="POST")
-def model_predict(handler):
+def model_predict(handler: RequestHandler):
   requestBody = handler.read_json()
   command = requestBody["command"]
   source = requestBody["source"]
@@ -175,18 +175,18 @@ def model_predict(handler):
 
 
 @yolo_router.register("/stop_model_predict")
-def stop_model_predict(handler):
+def stop_model_predict(handler: RequestHandler):
   if common.model_predict_process is not None and common.model_predict_process.is_alive():
     common.model_predict_process.terminate()
     common.model_predict_process = None
 
   common.sse_events.send_raw(create_sse_msg("on_model_predict_end", {"isStop": True}))
-  print("AutoLabel_Model_Predict_End")
+  print("MagicLabel_Model_Predict_End")
   return {"success": True, "msg": "操作成功"}
 
 
 @yolo_router.register("/set_sam_model", method="POST")
-def set_sam_model(handler):
+def set_sam_model(handler: RequestHandler):
   requestBody = handler.read_json()
   model = requestBody["model"]
 
@@ -200,7 +200,7 @@ def set_sam_model(handler):
 
 
 @yolo_router.register("/sam_model_predict", method="POST")
-def sam_model_predict(handler):
+def sam_model_predict(handler: RequestHandler):
   requestBody = handler.read_json()
   # 工作目录
   cwd = requestBody["cwd"]
@@ -295,7 +295,7 @@ def sam_model_predict(handler):
 
 
 @yolo_router.register("/get_video_frame")
-def get_video_frame(handler):
+def get_video_frame(handler: RequestHandler):
   video_path = handler.get_query_param("video_path")
   frame_index = handler.get_query_param("frame_index")
   if is_blank(video_path) or is_blank(frame_index):
@@ -336,7 +336,7 @@ def get_video_frame(handler):
 
 
 @yolo_router.register("/set_sam2_video_model", method="POST")
-def set_sam2_video_model(handler):
+def set_sam2_video_model(handler: RequestHandler):
   requestBody = handler.read_json()
   model = requestBody["model"]
   config = requestBody["config"]
@@ -395,7 +395,7 @@ def mask_to_bbox_normalized(mask, img_width, img_height):
   return center_x_norm, center_y_norm, width_norm, height_norm
 
 @yolo_router.register("/sam2_video_predict", method="POST")
-def sam2_video_predict(handler):
+def sam2_video_predict(handler: RequestHandler):
   requestBody = handler.read_json()
   # 输入图片路径
   folderPath = requestBody["folderPath"]
