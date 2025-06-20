@@ -67,8 +67,6 @@ manager: Union[Manager, None] = None
 predict_msg_queue: Union[Queue, None] = None
 # 导出消息
 export_msg_queue: Union[Queue, None] = None
-# 模型验证消息
-model_predict_msg_queue: Union[Queue, None] = None
 
 # 推理进程
 predict_process: Union[ProcessMsgThread, None] = None
@@ -76,8 +74,6 @@ predict_process: Union[ProcessMsgThread, None] = None
 predict_main_conn, predict_process_conn = Pipe()
 # 导出进程
 export_process: Union[ProcessMsgThread, None] = None
-# 模型验证进程
-model_predict_process: Union[ProcessMsgThread, None] = None
 
 # SAM模型
 sam_model: Union[FastSAM, SAM, YOLOE, YOLOWorld, None] = None
@@ -87,12 +83,11 @@ sam2_video_predictor: Union[SAM2VideoPredictor, None] = None
 sam2_image_predictor: Union[SAM2ImagePredictor, None] = None
 
 def initialize():
-  global sse_events, manager, predict_msg_queue, export_msg_queue, model_predict_msg_queue, predict_process, predict_process_conn, sam_model, load_ultralytics_success
+  global sse_events, manager, predict_msg_queue, export_msg_queue, predict_process, predict_process_conn, sam_model, load_ultralytics_success
 
   manager = Manager()
   predict_msg_queue = manager.Queue()
   export_msg_queue = manager.Queue()
-  model_predict_msg_queue = manager.Queue()
 
   # 启动识别进程
   predict_process = ProcessMsgThread(
@@ -107,7 +102,7 @@ def initialize():
   predict_process.start()
 
 def destroy():
-  global predict_process, export_process, model_predict_process
+  global predict_process, export_process
   if predict_process is not None:
     if predict_process is not None:
       predict_process.terminate()
@@ -115,10 +110,6 @@ def destroy():
     if export_process is not None:
       export_process.terminate()
       export_process = None
-    if model_predict_process is not None:
-      model_predict_process.terminate()
-      model_predict_process = None
-
 
 def set_sam_model(model_path):
   global sam_model, load_ultralytics_success

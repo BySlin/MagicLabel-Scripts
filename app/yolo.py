@@ -9,7 +9,7 @@ from lib.SSE import create_sse_msg
 from lib.SimpleHttpServer import Router, RequestHandler
 from lib.process_msg_thread import ProcessMsgThread
 from lib.utils import is_blank, is_not_blank
-from yolo_task import export_task_process, model_predict_task_process
+from yolo_task import export_task_process
 
 yolo_router = Router("/api/yolo")
 
@@ -141,47 +141,6 @@ def stop_export(handler: RequestHandler):
 
   common.sse_events.send_raw(create_sse_msg("on_export_end", {"isStop": True}))
   print("MagicLabel_Export_End")
-  return {"success": True, "msg": "操作成功"}
-
-
-@yolo_router.register("/model_predict", method="POST")
-def model_predict(handler: RequestHandler):
-  requestBody = handler.read_json()
-  command = requestBody["command"]
-  source = requestBody["source"]
-  framework = requestBody["framework"]
-
-  if is_blank(command) or is_blank(source) or is_blank(framework):
-    return {"success": False, "msg": "运行参数不能为空"}
-
-  if command is not None and source is not None and framework is not None:
-    if common.model_predict_process is None or not common.model_predict_process.is_alive():
-      common.model_predict_process = ProcessMsgThread(
-        msg_queue=common.model_predict_msg_queue,
-        sse=common.sse_events,
-        target=model_predict_task_process,
-        args=(
-          framework,
-          source,
-          command,
-          common.model_predict_msg_queue,
-        ),
-      )
-      common.model_predict_process.start()
-
-      return {"success": True, "msg": "操作成功"}
-    else:
-      return {"success": True, "msg": "模型验证进程正在运行中"}
-
-
-@yolo_router.register("/stop_model_predict")
-def stop_model_predict(handler: RequestHandler):
-  if common.model_predict_process is not None and common.model_predict_process.is_alive():
-    common.model_predict_process.terminate()
-    common.model_predict_process = None
-
-  common.sse_events.send_raw(create_sse_msg("on_model_predict_end", {"isStop": True}))
-  print("MagicLabel_Model_Predict_End")
   return {"success": True, "msg": "操作成功"}
 
 
