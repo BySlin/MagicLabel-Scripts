@@ -7,9 +7,7 @@ import time
 import common
 from lib.SSE import create_sse_msg
 from lib.SimpleHttpServer import Router, RequestHandler
-from lib.process_msg_thread import ProcessMsgThread
 from lib.utils import is_blank, is_not_blank
-from yolo_task import export_task_process
 
 yolo_router = Router("/api/yolo")
 
@@ -101,46 +99,6 @@ def stop_predict(handler: RequestHandler):
     )
   )
 
-  return {"success": True, "msg": "操作成功"}
-
-@yolo_router.register("/export", method="POST")
-def export(handler: RequestHandler):
-  requestBody = handler.read_json()
-  command = requestBody["command"]
-  outputPath = requestBody["outputPath"]
-  framework = requestBody["framework"]
-
-  if is_blank(command) or is_blank(outputPath) or is_blank(framework):
-    return {"success": False, "msg": "运行参数不能为空"}
-
-  if command is not None and outputPath is not None and framework is not None:
-    if common.export_process is None or not common.export_process.is_alive():
-      common.export_process = ProcessMsgThread(
-        msg_queue=common.export_msg_queue,
-        sse=common.sse_events,
-        target=export_task_process,
-        args=(
-          framework,
-          outputPath,
-          command,
-          common.export_msg_queue,
-        ),
-      )
-      common.export_process.start()
-
-      return {"success": True, "msg": "操作成功"}
-    else:
-      return {"success": True, "msg": "导出进程正在运行中"}
-
-
-@yolo_router.register("/stop_export")
-def stop_export(handler: RequestHandler):
-  if common.export_process is not None and common.export_process.is_alive():
-    common.export_process.terminate()
-    common.export_process = None
-
-  common.sse_events.send_raw(create_sse_msg("on_export_end", {"isStop": True}))
-  print("MagicLabel_Export_End")
   return {"success": True, "msg": "操作成功"}
 
 

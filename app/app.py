@@ -1,10 +1,5 @@
-import os
-import sys
 from multiprocessing import set_start_method
 from typing import Union
-
-current_directory = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(current_directory)
 
 from lib.SimpleHttpServer import createSimpleHttpServer, SimpleHttpServer
 
