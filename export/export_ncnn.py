@@ -88,65 +88,10 @@ def main():
 
   check_and_install("pnnx", "ncnn")
   if exec_python_command(*command):
-    if yolo_version == "yolov5":
-      if exec_command("pnnx", export_torchscript_filename, "inputshape=[1,3,640,640]"):
-        remove_temp_file()
-        print_dest_ncnn_path()
-        return
-    else:
-      if task == 'detect':
-        if exec_command("pnnx", export_torchscript_filename):
-          if yolo_version == "yolo11":
-            from ncnn.yolo11.detect_to_ncnn import export_torchscript
-          elif yolo_version == "yolov8":
-            from ncnn.yolov8.detect_to_ncnn import export_torchscript
-          else:
-            export_torchscript = None
-          if export_torchscript:
-            export_torchscript(export_pnnx_bin_filename, export_pnnx_pt_filename)
-            pnnx_pt_export("inputshape=[1,3,640,640]", "inputshape2=[1,3,320,320]")
-            return
-      elif task == 'obb':
-        if exec_command("pnnx", export_torchscript_filename):
-          if yolo_version == "yolo11":
-            from ncnn.yolo11.obb_to_ncnn import export_torchscript
-          elif yolo_version == "yolov8":
-            from ncnn.yolov8.obb_to_ncnn import export_torchscript
-          else:
-            export_torchscript = None
-          if export_torchscript:
-            export_torchscript(export_pnnx_bin_filename, export_pnnx_pt_filename)
-            pnnx_pt_export("inputshape=[1,3,1024,1024]", "inputshape2=[1,3,512,512]")
-            return
-      elif task == 'pose':
-        if exec_command("pnnx", export_torchscript_filename):
-          if yolo_version == "yolo11":
-            from ncnn.yolo11.pose_to_ncnn import export_torchscript
-          elif yolo_version == "yolov8":
-            from ncnn.yolov8.pose_to_ncnn import export_torchscript
-          else:
-            export_torchscript = None
-          if export_torchscript:
-            export_torchscript(export_pnnx_bin_filename, export_pnnx_pt_filename)
-            pnnx_pt_export("inputshape=[1,3,640,640]", "inputshape2=[1,3,320,320]")
-            return
-      elif task == 'segment':
-        if exec_command("pnnx", export_torchscript_filename):
-          if yolo_version == "yolo11":
-            from ncnn.yolo11.seg_to_ncnn import export_torchscript
-          elif yolo_version == "yolov8":
-            from ncnn.yolov8.seg_to_ncnn import export_torchscript
-          else:
-            export_torchscript = None
-          if export_torchscript:
-            export_torchscript(export_pnnx_bin_filename, export_pnnx_pt_filename)
-            pnnx_pt_export("inputshape=[1,3,640,640]", "inputshape2=[1,3,320,320]")
-            return
-      elif task == "classify":
-        exec_command("pnnx", export_torchscript_filename)
-        remove_temp_file()
-        print_dest_ncnn_path()
-        return
+    if exec_command("pnnx", export_torchscript_filename):
+      remove_temp_file()
+      print_dest_ncnn_path()
+      return
     print("导出ncnn模型失败")
   else:
     print("导出ncnn模型失败")
