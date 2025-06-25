@@ -8,12 +8,12 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 def main():
   parser = argparse.ArgumentParser(description="MagicLabel")
   parser.add_argument('--task', help='任务类型', default="detect")
-  parser.add_argument('--yolo_version', help='yolo版本', default="yolo11")
+  parser.add_argument('--framework', help='执行框架', default="ultralytics")
   parser.add_argument('--model', help='模型路径')
 
   args = parser.parse_args()
   task = args.task
-  yolo_version = args.yolo_version
+  framework = args.framework
   model = args.model
 
   base_path = os.path.normpath(os.path.dirname(model))
@@ -72,7 +72,7 @@ def main():
     print_dest_ncnn_path()
 
   command = []
-  if yolo_version == "yolov5":
+  if framework == "yolov5":
     export_py_path = os.path.join(current_dir, "export_yolov5.py")
     command.append(export_py_path)
     command.append("--weights")
