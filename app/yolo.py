@@ -141,11 +141,23 @@ def sam_model_predict(handler: RequestHandler):
     single = True
 
   try:
-    from ultralytics import FastSAM, SAM, YOLOE, YOLOWorld
+    from ultralytics import FastSAM
   except ImportError:
     FastSAM = None
+
+  try:
+    from ultralytics import SAM
+  except ImportError:
     SAM = None
+
+  try:
+    from ultralytics import YOLOE
+  except ImportError:
     YOLOE = None
+
+  try:
+    from ultralytics import YOLOWorld
+  except ImportError:
     YOLOWorld = None
 
   bboxes = []
@@ -316,9 +328,10 @@ def sam2_video_predict(handler: RequestHandler):
   requestBody = handler.read_json()
   # 输入图片路径
   folderPath = requestBody["folderPath"]
+  # 起始帧
   fileIndex = requestBody["fileIndex"]
-  clsIndex = requestBody["clsIndex"]
-  box = requestBody["box"]
+  # 标记框
+  boxs = requestBody["boxs"]
 
   if is_blank(folderPath):
     return {"success": False, "msg": "运行参数不能为空"}
@@ -339,12 +352,13 @@ def sam2_video_predict(handler: RequestHandler):
   video_height = inference_state["video_height"]
   img_prefix = inference_state["img_prefix"]
 
-  _, out_obj_ids, out_mask_logits = common.sam2_video_predictor.add_new_points_or_box(
-    inference_state=inference_state,
-    frame_idx=fileIndex,
-    obj_id=clsIndex,
-    box=box
-  )
+  for idx, box in enumerate(boxs):
+    common.sam2_video_predictor.add_new_points_or_box(
+      inference_state=inference_state,
+      frame_idx=fileIndex,
+      obj_id=idx,
+      box=box["bbox"],
+    )
 
   # 收集所有帧的分割结果
   for out_frame_idx, out_obj_ids, out_mask_logits in common.sam2_video_predictor.propagate_in_video(inference_state):
@@ -357,7 +371,7 @@ def sam2_video_predict(handler: RequestHandler):
       bbox = mask_to_bbox_normalized(mask, video_width, video_height)
       if bbox is not None:
         with open(f"{folderPath}/DetectLabels/{img_prefix}_{out_frame_idx}.txt", "a") as f:
-          f.write(f"{out_obj_id} {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}\n")
+          f.write(f"{boxs[out_obj_id]['clsIndex']} {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}\n")
 
   common.sam2_video_predictor.reset_state(inference_state)
   return {"success": True, "msg": "操作成功"}

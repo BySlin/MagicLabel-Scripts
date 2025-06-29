@@ -1,4 +1,5 @@
 import os
+import traceback
 from multiprocessing import Queue, Pipe, Manager
 from pathlib import Path
 from typing import Union
@@ -24,15 +25,32 @@ load_yolov5_success = False
 load_sahi_success = False
 
 try:
-  from ultralytics import FastSAM, SAM, YOLOE, YOLOWorld
+  from ultralytics import YOLO
 
   load_ultralytics_success = True
 except ImportError:
-  FastSAM = None
-  SAM = None
-  YOLOE = None
-  YOLOWorld = None
+  YOLO = None
   load_ultralytics_success = False
+
+try:
+  from ultralytics import FastSAM
+except ImportError:
+  FastSAM = None
+
+try:
+  from ultralytics import SAM
+except ImportError:
+  SAM = None
+
+try:
+  from ultralytics import YOLOE
+except ImportError:
+  YOLOE = None
+
+try:
+  from ultralytics import YOLOWorld
+except ImportError:
+  YOLOWorld = None
 
 try:
   import yolov5
@@ -108,14 +126,17 @@ def set_sam_model(model_path):
   if load_ultralytics_success:
     stem = Path(model_path).stem.lower()
     if "fastsam" in stem:
-      sam_model = FastSAM(model_path)
-      return True
+      if FastSAM is not None:
+        sam_model = FastSAM(model_path)
+        return True
     elif "sam_" in stem or "sam2_" in stem or "sam2.1_" in stem or "mobile_" in stem:
-      sam_model = SAM(model_path)
-      return True
+      if SAM is not None:
+        sam_model = SAM(model_path)
+        return True
     elif "yoloe" in stem:
-      sam_model = YOLOE(model_path)
-      return True
+      if YOLOE is not None:
+        sam_model = YOLOE(model_path)
+        return True
   return False
 
 
