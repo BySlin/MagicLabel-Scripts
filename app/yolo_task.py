@@ -213,7 +213,6 @@ def predict_task_process(conn, msg_queue):
     predict_params,
     sahi_settings,
   ):
-    sys.__stdout__.write("MagicLabel_Predict_Start\n")
     try:
       os.chdir(cwd)
 
@@ -421,7 +420,6 @@ def predict_task_process(conn, msg_queue):
       traceback_info = traceback.format_exc()
       print(traceback_info)
       msg_queue.put(create_sse_msg("on_predict_error"))
-    sys.__stdout__.write("MagicLabel_Predict_End\n")
 
   model: Union[
     YOLO, AutoShape, UltralyticsDetectionModel, Yolov5DetectionModel, None
