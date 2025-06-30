@@ -1,7 +1,6 @@
 import json
 import os
 import re
-import shutil
 import sys
 import threading
 import traceback
@@ -10,6 +9,7 @@ from typing import Union
 
 from lib.QueueWriter import QueueWriter
 from lib.SSE import create_sse_msg
+from lib.utils import empty_dir
 
 
 def convert_coco_json(annotations, label_file, w, h, classes, use_segments=False):
@@ -255,8 +255,7 @@ def predict_task_process(conn, msg_queue):
       source = predict_params["source"]
       source_is_dir = os.path.isdir(source)
       if source_is_dir:
-        if os.path.exists(config_dir):
-          shutil.rmtree(config_dir)
+        empty_dir(config_dir)
 
       if not os.path.exists(config_dir):
         os.makedirs(config_dir)
