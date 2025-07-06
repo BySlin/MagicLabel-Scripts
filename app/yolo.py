@@ -65,7 +65,7 @@ def predict(handler: RequestHandler):
   cwd = requestBody["cwd"]
   framework = requestBody["framework"]
   sahiSettings = requestBody["sahiSettings"]
-  skipExistsAnnotationFile = requestBody["skipExistsAnnotationFile"]
+  skipExistsAnnotationFile = requestBody.get("skipExistsAnnotationFile", False)
 
   if (
     is_blank(command)
