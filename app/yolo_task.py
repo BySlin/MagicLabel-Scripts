@@ -249,7 +249,7 @@ def predict_task_process(conn, msg_queue):
 
       source = predict_params["source"]
       source_is_dir = os.path.isdir(source)
-      if source_is_dir:
+      if source_is_dir and not skip_exists_annotation_file:
         empty_dir(config_dir)
 
       if not os.path.exists(config_dir):
