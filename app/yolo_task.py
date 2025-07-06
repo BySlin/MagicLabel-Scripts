@@ -204,14 +204,9 @@ def predict_task_process(conn, msg_queue):
     get_sliced_prediction = None
     sys.__stdout__.write("MagicLabel_Import_Sahi_Error\n")
 
-  def predict_thread(
-    framework_: str,
-    cwd: str,
-    yolo_model: Union[
-      YOLO, AutoShape, UltralyticsDetectionModel, Yolov5DetectionModel
-    ],
-    predict_params,
-    sahi_settings,
+  def predict_thread(framework_: str, cwd: str,
+                     yolo_model: Union[YOLO, AutoShape, UltralyticsDetectionModel, Yolov5DetectionModel],
+                     predict_params, sahi_settings, skip_exists_annotation_file
   ):
     try:
       os.chdir(cwd)
@@ -279,6 +274,17 @@ def predict_task_process(conn, msg_queue):
           + glob(os.path.join(source, "*.png"))
           + glob(os.path.join(source, "*.bmp"))
         )
+        # 是否开启了跳过已存在标注文件
+        if skip_exists_annotation_file:
+          image_files = [
+            image_file for image_file in image_files
+            if not os.path.exists(
+              os.path.join(
+                config_dir,
+                f"{os.path.splitext(os.path.basename(image_file))[0]}.txt",
+              )
+            )
+          ]
       else:
         image_files = [source]
 
@@ -358,7 +364,10 @@ def predict_task_process(conn, msg_queue):
               f"{os.path.splitext(os.path.basename(result.path))[0]}.txt",
             )
             if os.path.exists(txt_file):
-              os.remove(txt_file)
+              if skip_exists_annotation_file:
+                continue
+              else:
+                os.remove(txt_file)
             if mode == "Cls":
               # 如果置信度大于等于阈值，则写入文件
               if result.probs.top1conf.item() >= conf_:
@@ -489,6 +498,7 @@ def predict_task_process(conn, msg_queue):
               model,
               params,
               event_data["sahiSettings"],
+              event_data["skipExistsAnnotationFile"],
             ),
           ).start()
       elif event_ == "stop_predict":
