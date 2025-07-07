@@ -43,6 +43,7 @@ def model_predict(task, framework, model, source: str, conf, iou, imgsz):
 
   is_screen = source.startswith("screen")
   is_window = source.startswith("window")
+  is_rect = source.startswith("rect")
   is_image = is_image_file(source)
   monitor_number = 1
   mon = {
@@ -73,6 +74,15 @@ def model_predict(task, framework, model, source: str, conf, iou, imgsz):
     else:
       source = 'screen'
       monitor_number = 1
+  elif is_rect:
+    check_and_install("mss")
+    _, x, y, w, h = source.split("-")
+    mon = {
+      "left": int(x),
+      "top": int(y),
+      "width": int(w),
+      "height": int(h),
+    }
 
   def predict():
     if framework == "ultralytics":
