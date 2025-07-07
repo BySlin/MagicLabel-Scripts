@@ -123,7 +123,7 @@ def model_predict(task, framework, model, source: str, conf, iou, imgsz):
         except:
           pass
 
-  if is_window or is_screen:
+  if is_window or is_screen or is_rect:
     from mss import mss
     with mss() as sct:
       if is_screen:
