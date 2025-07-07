@@ -101,7 +101,7 @@ def model_predict(task, framework, model, source: str, conf, iou, imgsz):
         except:
           break
     elif framework == "yolov5":
-      if not is_image and not is_screen and not is_window:
+      if not is_image and not is_screen and not is_window and not is_rect:
         cap = cv2.VideoCapture(str_to_int_if_possible(source))
         while cap.isOpened():
           ret, frame = cap.read()
