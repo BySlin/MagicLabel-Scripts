@@ -364,7 +364,7 @@ def predict_task_process(conn, msg_queue):
               f"{os.path.splitext(os.path.basename(result.path))[0]}.txt",
             )
             if os.path.exists(txt_file):
-              if skip_exists_annotation_file:
+              if source_is_dir and skip_exists_annotation_file:
                 continue
               else:
                 os.remove(txt_file)
