@@ -1,5 +1,19 @@
+import importlib.util
 import os
 import shutil
+
+
+def module_exists(module_name):
+  """
+  检查模块是否存在
+
+  参数：
+  module_name (str): 模块名称
+
+  返回：
+  bool: 如果模块存在则返回True，否则返回False
+  """
+  return importlib.util.find_spec(module_name) is not None
 
 
 def is_not_blank(s: str) -> bool:
