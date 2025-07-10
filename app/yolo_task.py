@@ -29,7 +29,7 @@ def convert_coco_json(annotations, label_file, w, h, classes, map_classes, use_s
     cls = ann["category_id"]
     if cls not in classes:
       continue
-    cls = map_classes[cls]
+    cls = map_classes.get(cls, cls)
     # The COCO box format is [top left x, top left y, width, height]
     box = np.array(ann["bbox"], dtype=np.float64)
     if box.size == 4:
@@ -418,7 +418,7 @@ def predict_task_process(conn, msg_queue):
               if result.probs.top1conf.item() >= conf_:
                 with open(label_file, "w", encoding='utf-8') as file:
                   file.write(
-                    f"{result.probs.top1} {model_names[result.probs.top1]}\n"
+                    f"{map_classes.get(result.probs.top1, result.probs.top1)} {model_names[result.probs.top1]}\n"
                   )
             else:
               result.save_txt(label_file)
@@ -457,7 +457,7 @@ def predict_task_process(conn, msg_queue):
                 .tolist()
               )  # normalized xywh
 
-              line = (map_classes[cls.item()], *xywh)  # label format
+              line = (map_classes.get(cls.item(), cls.item()), *xywh)  # label format
               label_file = os.path.join(
                 config_dir,
                 f"{os.path.splitext(os.path.basename(image_file))[0]}.txt",
