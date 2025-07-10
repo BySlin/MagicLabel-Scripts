@@ -122,7 +122,6 @@ def parse_args(command: str):
       DEFAULT_CFG,
     )
   except ImportError:
-    print("MagicLabel_Import_Yolo_Error")
     return None
 
   args = re.findall(r'(\w+="[^"]*"|\w+=\S+)', command)
@@ -182,7 +181,6 @@ def predict_task_process(conn, msg_queue):
       )
     )
   except ImportError:
-    sys.__stdout__.write("MagicLabel_Import_Yolo_Error\n")
     msg_queue.put(create_sse_msg("on_env_error"))
     return
 
@@ -213,7 +211,6 @@ def predict_task_process(conn, msg_queue):
 
   # 如果ultralytics和yolov5都没有加载成功
   if not load_ultralytics_success and not load_yolov5_success:
-    sys.__stdout__.write("MagicLabel_Import_Yolo_Error\n")
     return
 
   # 加载sahi是否成功
@@ -231,7 +228,6 @@ def predict_task_process(conn, msg_queue):
     UltralyticsDetectionModel = None
     Yolov5DetectionModel = None
     get_sliced_prediction = None
-    sys.__stdout__.write("MagicLabel_Import_Sahi_Error\n")
 
   def predict_thread(framework_: str, cwd: str,
                      yolo_model: Union[YOLO, AutoShape, UltralyticsDetectionModel, Yolov5DetectionModel],
@@ -535,9 +531,7 @@ def predict_task_process(conn, msg_queue):
         framework = event_data["framework"]
         params = parse_args(event_data["command"])
 
-        if params is None:
-          sys.__stdout__.write("MagicLabel_Import_Yolo_Error\n")
-        else:
+        if params is not None:
           is_predicting = True
           threading.Thread(
             target=predict_thread,
