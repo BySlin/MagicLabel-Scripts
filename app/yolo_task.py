@@ -248,6 +248,11 @@ def predict_task_process(conn, msg_queue):
       config_dir = os.path.normpath(os.path.join(cwd, f"{mode}Labels"))
 
       source = predict_params["source"]
+      conf_ = predict_params["conf"]
+      iou_ = predict_params["iou"]
+      device_ = predict_params["device"]
+      classes_ = predict_params["classes"]
+      imgsz_ = predict_params["imgsz"]
       source_is_dir = os.path.isdir(source)
       if source_is_dir and not skip_exists_annotation_file:
         empty_dir(config_dir)
@@ -289,11 +294,6 @@ def predict_task_process(conn, msg_queue):
         image_files = [source]
 
       image_len = len(image_files)
-      conf_ = predict_params["conf"]
-      iou_ = predict_params["iou"]
-      device_ = predict_params["device"]
-      classes_ = predict_params["classes"]
-      imgsz_ = predict_params["imgsz"]
 
       is_stop = False
       if sahi_ and is_sahi_model:
