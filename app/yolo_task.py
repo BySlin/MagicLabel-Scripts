@@ -66,6 +66,34 @@ def convert_coco_json(annotations, label_file, w, h, classes, map_classes, use_s
         )  # cls, box or segments
         file.write(("%g " * len(line)).rstrip() % line + "\n")
 
+
+def replace_cls_in_label_file(label_file, map_classes):
+  if not os.path.exists(label_file):
+    return
+
+  lines = []
+  with open(label_file, 'r', encoding='utf-8') as f:
+    for line in f:
+      line = line.strip()
+      if not line:
+        continue
+
+      parts = line.split()
+      # YOLOv8保存txt的第一列是cls索引
+      cls_idx = int(parts[0])
+      mapped_cls = map_classes.get(cls_idx, cls_idx)
+
+      # 替换第一列cls索引
+      parts[0] = str(mapped_cls)
+
+      # 重新拼接行
+      new_line = " ".join(parts)
+      lines.append(new_line)
+
+  # 覆盖写回文件
+  with open(label_file, 'w', encoding='utf-8') as f:
+    f.write("\n".join(lines) + "\n")
+
 def yaml_load(file):
   try:
     from ultralytics.utils import YAML
@@ -394,6 +422,7 @@ def predict_task_process(conn, msg_queue):
                   )
             else:
               result.save_txt(label_file)
+              replace_cls_in_label_file(label_file, map_classes)
             if not is_predicting:
               is_stop = True
               break
