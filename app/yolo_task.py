@@ -422,7 +422,8 @@ def predict_task_process(conn, msg_queue):
               break
 
       msg_queue.put(
-        create_sse_msg("on_predict_end", {"mode": mode, "isStop": is_stop, "singleFile": image_len == 1})
+        create_sse_msg("on_predict_end",
+                       {"mode": mode, "isStop": is_stop, "singleFile": image_len == 1, "classesIndexArray": classes_})
       )
     except:
       traceback_info = traceback.format_exc()
