@@ -273,8 +273,9 @@ def predict_task_process(conn, msg_queue):
       # 将类别名称写入 classes.txt
       with open(classes_txt_path, "w", encoding='utf-8') as file:
         for idx, name in model_names.items():
-          if idx in classes_:
-            file.write(name + "\n")
+          if idx not in classes_:
+            continue
+          file.write(name + "\n")
 
       sahi_ = sahi_settings["sahi"]
       slice_width_ = sahi_settings["sahi_slice_width"]
