@@ -12,7 +12,7 @@ from lib.SSE import create_sse_msg
 from lib.utils import empty_dir
 
 
-def convert_coco_json(annotations, label_file, w, h, classes, use_segments=False):
+def convert_coco_json(annotations, label_file, w, h, classes, map_classes, use_segments=False):
   try:
     from ultralytics.data.converter import merge_multi_segment
     import numpy as np
@@ -29,6 +29,7 @@ def convert_coco_json(annotations, label_file, w, h, classes, use_segments=False
     cls = ann["category_id"]
     if cls not in classes:
       continue
+    cls = map_classes[cls]
     # The COCO box format is [top left x, top left y, width, height]
     box = np.array(ann["bbox"], dtype=np.float64)
     if box.size == 4:
@@ -333,12 +334,15 @@ def predict_task_process(conn, msg_queue):
               config_dir,
               f"{os.path.splitext(os.path.basename(image_file))[0]}.txt",
             )
+            if os.path.exists(label_file):
+              os.remove(label_file)
             convert_coco_json(
               annotations,
               label_file,
               width,
               height,
               classes_,
+              map_classes,
               use_segments=use_segments,
             )
             print(
@@ -372,24 +376,24 @@ def predict_task_process(conn, msg_queue):
 
         if framework_ == "ultralytics":
           for result in results:
-            txt_file = os.path.join(
+            label_file = os.path.join(
               config_dir,
               f"{os.path.splitext(os.path.basename(result.path))[0]}.txt",
             )
-            if os.path.exists(txt_file):
+            if os.path.exists(label_file):
               if source_is_dir and skip_exists_annotation_file:
                 continue
               else:
-                os.remove(txt_file)
+                os.remove(label_file)
             if mode == "Cls":
               # 如果置信度大于等于阈值，则写入文件
               if result.probs.top1conf.item() >= conf_:
-                with open(txt_file, "w", encoding='utf-8') as file:
+                with open(label_file, "w", encoding='utf-8') as file:
                   file.write(
                     f"{result.probs.top1} {model_names[result.probs.top1]}\n"
                   )
             else:
-              result.save_txt(txt_file)
+              result.save_txt(label_file)
             if not is_predicting:
               is_stop = True
               break
@@ -423,12 +427,15 @@ def predict_task_process(conn, msg_queue):
                 .view(-1)
                 .tolist()
               )  # normalized xywh
-              line = (cls, *xywh)  # label format
-              txt_file = os.path.join(
+
+              line = (map_classes[cls.item()], *xywh)  # label format
+              label_file = os.path.join(
                 config_dir,
                 f"{os.path.splitext(os.path.basename(image_file))[0]}.txt",
               )
-              with open(txt_file, "a", encoding='utf-8') as f:
+              if os.path.exists(label_file):
+                  os.remove(label_file)
+              with open(label_file, "a", encoding='utf-8') as f:
                 f.write(("%g " * len(line)).rstrip() % line + "\n")
             if not is_predicting:
               is_stop = True
