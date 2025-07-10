@@ -113,9 +113,9 @@ def set_sam_model(handler: RequestHandler):
     return {"success": False, "msg": "运行参数不能为空"}
 
   if common.set_sam_model(model):
-    return {"success": True, "msg": "切换模型成功"}
+    return {"success": True, "msg": "加载模型成功"}
   else:
-    return {"success": False, "msg": "设置SAM模型失败"}
+    return {"success": False, "msg": "加载模型失败"}
 
 
 @yolo_router.register("/sam_model_predict", method="POST")
@@ -275,9 +275,9 @@ def set_sam2_video_model(handler: RequestHandler):
     return {"success": False, "msg": "运行参数不能为空"}
 
   if common.set_sam2_video_model(config, model):
-    return {"success": True, "msg": "切换模型成功"}
+    return {"success": True, "msg": "加载模型成功"}
   else:
-    return {"success": False, "msg": "设置SAM模型失败"}
+    return {"success": False, "msg": "加载模型失败"}
 
 
 def mask_to_bbox_normalized(mask, img_width, img_height):
