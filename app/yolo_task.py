@@ -415,7 +415,7 @@ def predict_task_process(conn, msg_queue):
                 os.remove(label_file)
             if mode == "Cls":
               # 如果置信度大于等于阈值，则写入文件
-              if result.probs.top1conf.item() >= conf_:
+              if result.probs.top1conf.item() >= conf_ and result.probs.top1 in classes_:
                 with open(label_file, "w", encoding='utf-8') as file:
                   file.write(
                     f"{map_classes.get(result.probs.top1, result.probs.top1)} {model_names[result.probs.top1]}\n"
