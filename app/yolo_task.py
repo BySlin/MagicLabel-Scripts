@@ -258,7 +258,7 @@ def predict_task_process(conn, msg_queue):
       # 标签列表筛选索引
       classes_ = predict_params["classes"]
       # 标签索引映射
-      map_classes = {idx: val for idx, val in enumerate(t)}
+      map_classes = {idx: val for idx, val in enumerate(classes_)}
       # 输入图片大小
       imgsz_ = predict_params["imgsz"]
       # 输入源是否是目录
