@@ -247,16 +247,25 @@ def predict_task_process(conn, msg_queue):
 
       config_dir = os.path.normpath(os.path.join(cwd, f"{mode}Labels"))
 
+      # 输入源 图片或者目录
       source = predict_params["source"]
+      # 置信度阈值
       conf_ = predict_params["conf"]
+      # IOU阈值
       iou_ = predict_params["iou"]
+      # 推理设备
       device_ = predict_params["device"]
+      # 标签列表筛选索引
       classes_ = predict_params["classes"]
+      # 输入图片大小
       imgsz_ = predict_params["imgsz"]
+      # 输入源是否是目录
       source_is_dir = os.path.isdir(source)
+      # 输入源是目录 并且 没开启了跳过已存在标注文件 执行清空目录
       if source_is_dir and not skip_exists_annotation_file:
         empty_dir(config_dir)
 
+      # 确保目录存在
       if not os.path.exists(config_dir):
         os.makedirs(config_dir)
 
@@ -264,7 +273,8 @@ def predict_task_process(conn, msg_queue):
       # 将类别名称写入 classes.txt
       with open(classes_txt_path, "w", encoding='utf-8') as file:
         for idx, name in model_names.items():
-          file.write(name + "\n")
+          if idx in classes_:
+            file.write(name + "\n")
 
       sahi_ = sahi_settings["sahi"]
       slice_width_ = sahi_settings["sahi_slice_width"]
