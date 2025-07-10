@@ -110,6 +110,9 @@ def createSimpleHandler(routers):
     def __init__(self, *args, **kwargs):
       super().__init__(*args, routers=routers, **kwargs)  # 调用父类构造函数，传入路由列表
 
+    def log_message(self, format, *args):
+      pass  # 重写为空，禁止日志打印
+
   return CustomRequestHandler  # 返回自定义请求处理类
 
 
