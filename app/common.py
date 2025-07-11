@@ -127,9 +127,10 @@ def set_sam2_image_model(config_file, model_path):
   if load_sam2_success:
     try:
       from sam2.build_sam import build_sam2
+      from sam2.sam2_image_predictor import SAM2ImagePredictor
     except ImportError:
       return False
-    sam2_image_predictor = build_sam2(config_file, model_path)
+    sam2_image_predictor = SAM2ImagePredictor(build_sam2(config_file, model_path))
     return True
   return False
 
