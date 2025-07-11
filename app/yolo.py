@@ -412,84 +412,111 @@ def auto_detect(handler: RequestHandler):
   test_img = cv2.imread(path)
   h_test, w_test = test_img.shape[:2]
 
-  # 5. 网格采样候选点并多线程预处理patch（不推理）
   step = 10
   size = 100
+  K = 3  # 多点提示数
+  fill_color = (0, 0, 255)  # BGR红色填充
+  sim_threshold = 0.8  # 相似度阈值，不满足停止
+  max_iters = 10  # 最大迭代识别目标数
 
-  # 采样点生成（只生成坐标）
-  coords = []
-  for cy in range(step // 2, h_test, step):
-    for cx in range(step // 2, w_test, step):
-      coords.append((cx, cy))
-
-  def preprocess_patch(coord):
+  def preprocess_patch(coord, img):
     cx, cy = coord
     x1 = max(cx - size // 2, 0)
     y1 = max(cy - size // 2, 0)
-    x2 = min(cx + size // 2, w_test)
-    y2 = min(cy + size // 2, h_test)
-    crop = test_img[y1:y2, x1:x2]
+    x2 = min(cx + size // 2, img.shape[1])
+    y2 = min(cy + size // 2, img.shape[0])
+    crop = img[y1:y2, x1:x2]
     if crop.size == 0:
-      return None  # 跳过空patch
-
+      return None
     img_rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
     pil_img = Image.fromarray(img_rgb)
-    inp = common.clip_preprocess(pil_img)  # CxHxW tensor
+    inp = common.clip_preprocess(pil_img)
     return (coord, inp, (x1, y1, x2, y2))
 
-  patch_tensors = []
-  candidate_points = []
-
-  with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-    results = list(executor.map(preprocess_patch, coords))
-
-  for res in results:
-    if res is None:
-      continue
-    (cx, cy), inp, box = res
-    patch_tensors.append(inp)
-    candidate_points.append((cx, cy, *box))
-
-  if len(patch_tensors) == 0:
-    return {"success": False, "msg": "识别图片识别，未读取到任何特征"}
-
-  batch = torch.stack(patch_tensors).to("cuda")  # (N,3,224,224)
-
-  # 一次性批量推理，提取所有patch特征
-  with torch.no_grad():
-    feats = common.clip_model.encode_image(batch)  # (N, dim)
-    feats /= feats.norm(dim=-1, keepdim=True)
-
   for key in cls_in_support_feat_tensor:
-    # 计算每个patch与支持特征的相似度（余弦相似度）
-    sims = (feats @ cls_in_support_feat_tensor[key].unsqueeze(-1)).squeeze(-1)  # (N,)
+    # 初始化填充掩码（记录已识别区域）
+    filled_mask = np.zeros((h_test, w_test), dtype=np.uint8)
 
-    candidate_scores = sims.cpu().numpy().tolist()
+    for iter_idx in range(max_iters):
+      coords = []
+      for cy in range(step // 2, h_test, step):
+        for cx in range(step // 2, w_test, step):
+          if filled_mask[cy, cx] == 1:  # 跳过已填充区域
+            continue
+          coords.append((cx, cy))
 
-    # 8. 选择Top-K提示点做多点提示
-    K = 3
-    topk_indices = np.argsort(candidate_scores)[-K:]
-    topk_points = [candidate_points[i] for i in topk_indices]
+      if len(coords) == 0:
+        break
 
-    input_points = np.array([[pt[0], pt[1]] for pt in topk_points])
-    input_labels = np.ones(len(input_points), dtype=np.int32)
+      patch_tensors = []
+      candidate_points = []
 
-    print(f"选取的提示点：{input_points}")
+      with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        results = list(executor.map(lambda c: preprocess_patch(c, test_img), coords))
 
-    # 通过SAM2预测分割
-    common.sam2_image_predictor.set_image(cv2.cvtColor(test_img, cv2.COLOR_BGR2RGB))
-    masks, scores, logits = common.sam2_image_predictor.predict(
-      point_coords=input_points,
-      point_labels=input_labels,
-      multimask_output=False,
-    )
-    mask = masks[0]
-    h, w = mask.shape[-2:]
-    mask = mask.reshape(h, w, 1)
-    bbox = mask_to_bbox_normalized(mask, w_test, h_test)
-    if bbox is not None:
-      with open(f"{folderPath}/DetectLabels/{name_without_ext}.txt", "a") as f:
-        f.write(f"{key} {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}\n")
+      for res in results:
+        if res is None:
+          continue
+        (cx, cy), inp, box = res
+        patch_tensors.append(inp)
+        candidate_points.append((cx, cy, *box))
 
+      if len(patch_tensors) == 0:
+        break
+
+      batch = torch.stack(patch_tensors).to("cuda")
+
+      with torch.no_grad():
+        feats = common.clip_model.encode_image(batch)
+        feats /= feats.norm(dim=-1, keepdim=True)
+
+      sims = (feats @ cls_in_support_feat_tensor[key].unsqueeze(-1)).squeeze(-1)
+      candidate_scores = sims.cpu().numpy()
+
+      max_score = candidate_scores.max()
+      if max_score < sim_threshold:
+        break
+
+      topk_indices = np.argsort(candidate_scores)[-K:]
+      topk_points = [candidate_points[i] for i in topk_indices]
+      input_points = np.array([[pt[0], pt[1]] for pt in topk_points])
+      input_labels = np.ones(len(input_points), dtype=np.int32)
+
+      print(f"迭代{iter_idx} 选取提示点：{input_points.tolist()}")
+
+      # 通过SAM2预测分割
+      common.sam2_image_predictor.set_image(cv2.cvtColor(test_img, cv2.COLOR_BGR2RGB))
+      masks, scores, logits = common.sam2_image_predictor.predict(
+        point_coords=input_points,
+        point_labels=input_labels,
+        multimask_output=False,
+      )
+      mask = masks[0]
+      h, w = mask.shape[-2:]
+      mask = mask.reshape(h, w, 1)
+      bbox = mask_to_bbox_normalized(mask, w_test, h_test)
+      if bbox is not None:
+        with open(f"{folderPath}/DetectLabels/{name_without_ext}.txt", "a") as f:
+          f.write(f"{key} {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}\n")
+
+      mask_uint8 = (mask * 255).astype(np.uint8)
+      if mask_uint8.shape != (h_test, w_test):
+        mask_uint8 = cv2.resize(mask_uint8, (w_test, h_test), interpolation=cv2.INTER_NEAREST)
+      mask_binary = mask_uint8 > 128
+
+      # 找mask轮廓
+      contours, _ = cv2.findContours(mask_binary.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+      if len(contours) == 0:
+        print(f"迭代{iter_idx}：无有效轮廓，跳过。")
+        continue
+
+      # 找最小外接矩形
+      x, y, w, h = cv2.boundingRect(contours[0])
+      # 用矩形区域更新 filled_mask
+      filled_mask[y:y + h, x:x + w] = 1
+      # 矩形区域纯色填充
+      test_img[y:y + h, x:x + w] = fill_color
+      # 用纯色覆盖目标区域
+      test_img[mask_binary] = fill_color
 
   return {"success": True, "msg": "设置特征成功"}
