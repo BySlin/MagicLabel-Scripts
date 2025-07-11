@@ -20,7 +20,6 @@ def start_web_server():
   httpServer = createSimpleHttpServer([yolo_router], "localhost", port)
   with httpServer:
     print("MagicLabelServerLoaded")
-    httpServer.daemon_threads = True
     httpServer.serve_forever()
 
 

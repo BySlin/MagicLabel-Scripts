@@ -93,6 +93,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
 class SimpleHttpServer(socketserver.ThreadingTCPServer):
   # 简单的HTTP服务器类，继承自ThreadingTCPServer
   allow_reuse_address = True  # 允许重用地址
+  daemon_threads = True  # 设置为守护线程
 
 
 def createSimpleHandler(routers):
