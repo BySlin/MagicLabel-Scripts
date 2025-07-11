@@ -364,21 +364,22 @@ def set_clip_feat(handler: RequestHandler):
 
   requestBody = handler.read_json()
   path = requestBody["path"]
-  box = requestBody["box"]
+  # 标记框
+  boxs = requestBody["boxs"]
   if is_blank(path):
     return {"success": False, "msg": "运行参数不能为空"}
 
   if common.clip_model is None:
     common.load_clip_model()
 
-  support_img = cv2.imread(path)
-  x, y, w, h = box
-
-  support_crop = support_img[y:y + h, x:x + w]
-  support_feat = common.extract_clip_feature(support_crop)
-
   global support_feat_tensor
-  support_feat_tensor = torch.from_numpy(support_feat).to("cuda")
+
+  for box in boxs:
+    support_img = cv2.imread(path)
+    x, y, w, h = box.box
+    support_crop = support_img[y:y + h, x:x + w]
+    support_feat = common.extract_clip_feature(support_crop)
+    support_feat_tensor = (box.clsIndex, torch.from_numpy(support_feat).to("cuda"))
   return {"success": True, "msg": "设置特征成功"}
 
 
