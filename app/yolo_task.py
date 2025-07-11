@@ -446,20 +446,19 @@ def predict_task_process(conn, msg_queue):
             gn = torch.tensor(im.shape)[
               [1, 0, 1, 0]
             ]  # normalization gain whwh
+            label_file = os.path.join(
+              config_dir,
+              f"{os.path.splitext(os.path.basename(image_file))[0]}.txt",
+            )
+            if os.path.exists(label_file):
+              os.remove(label_file)
             for *xyxy, conf, cls in reversed(pred):
               xywh = (
                 (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn)
                 .view(-1)
                 .tolist()
               )  # normalized xywh
-
               line = (map_classes.get(cls.item(), cls.item()), *xywh)  # label format
-              label_file = os.path.join(
-                config_dir,
-                f"{os.path.splitext(os.path.basename(image_file))[0]}.txt",
-              )
-              if os.path.exists(label_file):
-                  os.remove(label_file)
               with open(label_file, "a", encoding='utf-8') as f:
                 f.write(("%g " * len(line)).rstrip() % line + "\n")
             if not is_predicting:
