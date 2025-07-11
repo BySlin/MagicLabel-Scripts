@@ -89,6 +89,12 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
       return values[0]  # 返回第一个值
     return default  # 如果没有值，返回默认值
 
+  def end_headers(self):
+    self.send_header("Access-Control-Allow-Origin", "*")
+    self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+    self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+    super().end_headers()
+
 
 class SimpleHttpServer(socketserver.ThreadingTCPServer):
   # 简单的HTTP服务器类，继承自ThreadingTCPServer
