@@ -1,4 +1,5 @@
 import base64
+import concurrent.futures
 import json
 import os.path
 import threading
@@ -354,7 +355,7 @@ def set_sam2_image_model(handler: RequestHandler):
 
 
 @yolo_router.register("/set_clip_feat", method="POST")
-def set_sam2_image_model(handler: RequestHandler):
+def set_clip_feat(handler: RequestHandler):
   try:
     import cv2
     import torch
@@ -378,4 +379,66 @@ def set_sam2_image_model(handler: RequestHandler):
 
   global support_feat_tensor
   support_feat_tensor = torch.from_numpy(support_feat).to("cuda")
-  return {"success": False, "msg": "设置特征成功"}
+  return {"success": True, "msg": "设置特征成功"}
+
+
+@yolo_router.register("/auto_detect", method="POST")
+def auto_detect(handler: RequestHandler):
+  try:
+    import cv2
+    import torch
+    from PIL import Image
+  except ImportError:
+    return {"success": False, "msg": "未安装opencv-python"}
+
+  requestBody = handler.read_json()
+  path = requestBody["path"]
+
+  if common.clip_model is None:
+    return {"success": False, "msg": "CLIP模型未加载"}
+
+  test_img = cv2.imread(path)
+  h_test, w_test = test_img.shape[:2]
+
+  # 5. 网格采样候选点并多线程预处理patch（不推理）
+  step = 10
+  size = 100
+
+  # 采样点生成（只生成坐标）
+  coords = []
+  for cy in range(step // 2, h_test, step):
+    for cx in range(step // 2, w_test, step):
+      coords.append((cx, cy))
+
+  def preprocess_patch(coord):
+    cx, cy = coord
+    x1 = max(cx - size // 2, 0)
+    y1 = max(cy - size // 2, 0)
+    x2 = min(cx + size // 2, w_test)
+    y2 = min(cy + size // 2, h_test)
+    crop = test_img[y1:y2, x1:x2]
+    if crop.size == 0:
+      return None  # 跳过空patch
+
+    img_rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
+    pil_img = Image.fromarray(img_rgb)
+    inp = common.clip_preprocess(pil_img)  # CxHxW tensor
+    return (coord, inp, (x1, y1, x2, y2))
+
+  patch_tensors = []
+  candidate_points = []
+
+  with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+    results = list(executor.map(preprocess_patch, coords))
+
+  for res in results:
+    if res is None:
+      continue
+    (cx, cy), inp, box = res
+    patch_tensors.append(inp)
+    candidate_points.append((cx, cy, *box))
+
+  if len(patch_tensors) == 0:
+    return {"success": False, "msg": "识别图片识别，未读取到任何特征"}
+
+  return {"success": True, "msg": "设置特征成功"}
