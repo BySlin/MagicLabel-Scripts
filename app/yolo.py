@@ -16,7 +16,7 @@ yolo_router = Router("/api/yolo")
 if TYPE_CHECKING:
   from torch import Tensor
 
-support_feat_tensor: Union["Tensor", None] = None
+cls_in_support_feat_tensor: Union[dict[int, "Tensor"], None] = None
 
 @yolo_router.register("/sse_events")
 def sse_events(handler: RequestHandler):
@@ -372,14 +372,14 @@ def set_clip_feat(handler: RequestHandler):
   if common.clip_model is None:
     common.load_clip_model()
 
-  global support_feat_tensor
-
+  global cls_in_support_feat_tensor
+  cls_in_support_feat_tensor = {}
   for box in boxs:
     support_img = cv2.imread(path)
     x, y, w, h = box["bbox"]
     support_crop = support_img[y:y + h, x:x + w]
     support_feat = common.extract_clip_feature(support_crop)
-    support_feat_tensor = (box["clsIndex"], torch.from_numpy(support_feat).to("cuda"))
+    cls_in_support_feat_tensor[box["clsIndex"]] = torch.from_numpy(support_feat).to("cuda")
   return {"success": True, "msg": "设置特征成功"}
 
 
@@ -389,6 +389,7 @@ def auto_detect(handler: RequestHandler):
     import cv2
     import torch
     from PIL import Image
+    import numpy as np
   except ImportError:
     return {"success": False, "msg": "未安装opencv-python"}
 
@@ -397,6 +398,9 @@ def auto_detect(handler: RequestHandler):
 
   if common.clip_model is None:
     return {"success": False, "msg": "CLIP模型未加载"}
+
+  if common.sam2_image_predictor is None:
+    return {"success": False, "msg": "SAM2模型未加载"}
 
   test_img = cv2.imread(path)
   h_test, w_test = test_img.shape[:2]
@@ -441,5 +445,38 @@ def auto_detect(handler: RequestHandler):
 
   if len(patch_tensors) == 0:
     return {"success": False, "msg": "识别图片识别，未读取到任何特征"}
+
+  batch = torch.stack(patch_tensors).to("cuda")  # (N,3,224,224)
+
+  # 一次性批量推理，提取所有patch特征
+  with torch.no_grad():
+    feats = common.clip_model.encode_image(batch)  # (N, dim)
+    feats /= feats.norm(dim=-1, keepdim=True)
+
+  for key in cls_in_support_feat_tensor:
+    # 计算每个patch与支持特征的相似度（余弦相似度）
+    sims = (feats @ cls_in_support_feat_tensor[key].unsqueeze(-1)).squeeze(-1)  # (N,)
+
+    candidate_scores = sims.cpu().numpy().tolist()
+
+    # 8. 选择Top-K提示点做多点提示
+    K = 3
+    topk_indices = np.argsort(candidate_scores)[-K:]
+    topk_points = [candidate_points[i] for i in topk_indices]
+
+    input_points = np.array([[pt[0], pt[1]] for pt in topk_points])
+    input_labels = np.ones(len(input_points), dtype=np.int32)
+
+    print(f"选取的提示点：{input_points}")
+
+    # 通过SAM2预测分割
+    common.sam2_image_predictor.set_image(cv2.cvtColor(test_img, cv2.COLOR_BGR2RGB))
+    masks, scores, logits = common.sam2_image_predictor.predict(
+      point_coords=input_points,
+      point_labels=input_labels,
+      multimask_output=False,
+    )
+    print(masks)
+
 
   return {"success": True, "msg": "设置特征成功"}
