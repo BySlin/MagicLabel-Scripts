@@ -29,11 +29,15 @@ print("[MagicLabel]load_sahi_success:", load_sahi_success)
 # 加载SAM2是否成功
 load_sam2_success = module_exists("sam2")
 print("[MagicLabel]load_sam2_success:", load_sam2_success)
+# 加载clip是否成功
+load_clip_success = module_exists("clip")
+print("[MagicLabel]load_clip_success:", load_clip_success)
 
 if TYPE_CHECKING:
   from ultralytics import FastSAM, SAM, YOLOE, YOLOWorld
   from sam2.sam2_video_predictor import SAM2VideoPredictor
   from sam2.sam2_image_predictor import SAM2ImagePredictor
+  from clip.model import CLIP
 
 # SSE事件
 sse_events = ServerSentEvents()
@@ -52,6 +56,9 @@ sam_model: Union["FastSAM", "SAM", "YOLOE", "YOLOWorld", None] = None
 # SAM2模型
 sam2_video_predictor: Union["SAM2VideoPredictor", None] = None
 sam2_image_predictor: Union["SAM2ImagePredictor", None] = None
+
+# CLIP模型
+clip_model: Union["CLIP", None] = None
 
 def initialize():
   global sse_events, predict_msg_queue, predict_process, predict_process_conn, sam_model, load_ultralytics_success
@@ -120,5 +127,17 @@ def set_sam2_image_model(config_file, model_path):
     except ImportError:
       return False
     sam2_image_predictor = build_sam2(config_file, model_path)
+    return True
+  return False
+
+
+def load_clip_model():
+  global clip_model
+  if load_clip_success:
+    try:
+      import clip
+    except ImportError:
+      return False
+    clip_model = clip.load("ViT-B/32", device="cuda")
     return True
   return False
