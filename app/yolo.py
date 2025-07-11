@@ -371,11 +371,11 @@ def set_sam2_image_model(handler: RequestHandler):
     common.load_clip_model()
 
   support_img = cv2.imread(path)
-  x, y, w, h = box  # 替换成你的支持区域坐标
+  x, y, w, h = box
 
   support_crop = support_img[y:y + h, x:x + w]
   support_feat = common.extract_clip_feature(support_crop)
 
   global support_feat_tensor
-  support_feat_tensor = torch.from_numpy(support_feat).to("cuda")  # 方便后续相似度计算
+  support_feat_tensor = torch.from_numpy(support_feat).to("cuda")
   return {"success": False, "msg": "设置特征成功"}
