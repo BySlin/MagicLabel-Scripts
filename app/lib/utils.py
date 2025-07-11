@@ -153,5 +153,3 @@ def check_and_kill_port_process_and_children(port: int):
         print(f"端口 {port} 被 PID {pid} 占用，准备结束该进程及其子进程")
         kill_process_tree(pid)
       break
-  else:
-    print(f"端口 {port} 空闲")
