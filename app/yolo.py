@@ -388,13 +388,20 @@ def auto_detect(handler: RequestHandler):
   try:
     import cv2
     import torch
-    from PIL import Image
     import numpy as np
+    from PIL import Image
+    from sam2_utils import mask_to_bbox_normalized
   except ImportError:
     return {"success": False, "msg": "未安装opencv-python"}
 
   requestBody = handler.read_json()
+  # 输入图片路径
+  folderPath = requestBody["folderPath"]
+  # 图片路径
   path = requestBody["path"]
+
+  # 获取图片文件名不带后缀
+  name_without_ext = os.path.splitext(os.path.basename(path))[0]
 
   if common.clip_model is None:
     return {"success": False, "msg": "CLIP模型未加载"}
@@ -476,7 +483,13 @@ def auto_detect(handler: RequestHandler):
       point_labels=input_labels,
       multimask_output=False,
     )
-    print(masks)
+    mask = masks[0]
+    h, w = mask.shape[-2:]
+    mask = mask.reshape(h, w, 1)
+    bbox = mask_to_bbox_normalized(mask, w_test, h_test)
+    if bbox is not None:
+      with open(f"{folderPath}/DetectLabels/{name_without_ext}.txt", "a") as f:
+        f.write(f"{key} {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}\n")
 
 
   return {"success": True, "msg": "设置特征成功"}
