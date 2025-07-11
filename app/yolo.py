@@ -376,7 +376,7 @@ def set_clip_feat(handler: RequestHandler):
 
   for box in boxs:
     support_img = cv2.imread(path)
-    x, y, w, h = box.bbox
+    x, y, w, h = box["bbox"]
     support_crop = support_img[y:y + h, x:x + w]
     support_feat = common.extract_clip_feature(support_crop)
     support_feat_tensor = (box.clsIndex, torch.from_numpy(support_feat).to("cuda"))
