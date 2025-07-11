@@ -3,6 +3,7 @@ import json
 import os.path
 import threading
 import time
+from typing import Union, TYPE_CHECKING
 
 import common
 from lib.SSE import create_sse_msg
@@ -11,6 +12,10 @@ from lib.utils import is_blank, is_not_blank
 
 yolo_router = Router("/api/yolo")
 
+if TYPE_CHECKING:
+  from torch import Tensor
+
+support_feat_tensor: Union["Tensor", None] = None
 
 @yolo_router.register("/sse_events")
 def sse_events(handler: RequestHandler):
@@ -346,3 +351,31 @@ def set_sam2_image_model(handler: RequestHandler):
     return {"success": True, "msg": "加载模型成功"}
   else:
     return {"success": False, "msg": "加载模型失败"}
+
+
+@yolo_router.register("/set_clip_feat", method="POST")
+def set_sam2_image_model(handler: RequestHandler):
+  try:
+    import cv2
+    import torch
+  except ImportError:
+    return {"success": False, "msg": "未安装opencv-python"}
+
+  requestBody = handler.read_json()
+  path = requestBody["path"]
+  box = requestBody["box"]
+  if is_blank(path):
+    return {"success": False, "msg": "运行参数不能为空"}
+
+  if common.clip_model is None:
+    common.load_clip_model()
+
+  support_img = cv2.imread(path)
+  x, y, w, h = box  # 替换成你的支持区域坐标
+
+  support_crop = support_img[y:y + h, x:x + w]
+  support_feat = common.extract_clip_feature(support_crop)
+
+  global support_feat_tensor
+  support_feat_tensor = torch.from_numpy(support_feat).to("cuda")  # 方便后续相似度计算
+  return {"success": False, "msg": "设置特征成功"}

@@ -1,7 +1,7 @@
 import os
 from multiprocessing import Queue, Pipe
 from pathlib import Path
-from typing import Union, TYPE_CHECKING
+from typing import Union, TYPE_CHECKING, Callable
 
 from custom import custom_framework
 from lib.SSE import ServerSentEvents
@@ -38,6 +38,8 @@ if TYPE_CHECKING:
   from sam2.sam2_video_predictor import SAM2VideoPredictor
   from sam2.sam2_image_predictor import SAM2ImagePredictor
   from clip.model import CLIP
+  from torch import Tensor
+  from PIL import Image
 
 # SSE事件
 sse_events = ServerSentEvents()
@@ -59,6 +61,7 @@ sam2_image_predictor: Union["SAM2ImagePredictor", None] = None
 
 # CLIP模型
 clip_model: Union["CLIP", None] = None
+clip_preprocess: Union["Callable[[Image], Tensor]", None] = None
 
 def initialize():
   global sse_events, predict_msg_queue, predict_process, predict_process_conn, sam_model, load_ultralytics_success
@@ -132,12 +135,30 @@ def set_sam2_image_model(config_file, model_path):
 
 
 def load_clip_model():
-  global clip_model
+  global clip_model, clip_preprocess
   if load_clip_success:
     try:
       import clip
     except ImportError:
       return False
-    clip_model = clip.load("ViT-B/32", device="cuda")
+    clip_model, clip_preprocess = clip.load("ViT-B/32", device="cuda")
     return True
   return False
+
+
+def extract_clip_feature(img):
+  global clip_model, clip_preprocess
+  try:
+    import cv2
+    import torch
+    from PIL import Image
+  except ImportError:
+    return
+  """单张图像提特征，保持原代码兼容（主要用于支持图）"""
+  img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+  pil_img = Image.fromarray(img_rgb)
+  inp = clip_preprocess(pil_img).unsqueeze(0).to("cuda")
+  with torch.no_grad():
+    feat = clip_model.encode_image(inp)
+    feat /= feat.norm(dim=-1, keepdim=True)
+  return feat.cpu().numpy()[0]
