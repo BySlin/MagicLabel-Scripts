@@ -1,6 +1,8 @@
 import importlib.util
 import os
 import shutil
+import subprocess
+import sys
 
 
 def module_exists(module_name):
@@ -63,3 +65,95 @@ def empty_dir(dir_path):
         shutil.rmtree(entry_path)  # 递归删除子目录及其内容
     except Exception as e:
       print(f"删除 {entry_path} 失败: {e}")
+
+
+def check_and_install(*packages):
+  """
+  检查并安装指定的Python库。
+  如果库未安装，将尝试使用pip安装。
+  :param packages: 一个或多个包名字符串
+  """
+  for package in packages:
+    try:
+      importlib.import_module(package)
+    except ImportError:
+      print(f"{package} 未安装, 正在安装...")
+      try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+        print(f"{package} 安装成功.")
+      except subprocess.CalledProcessError as e:
+        print(f"安装 {package} 失败，错误信息: {e}")
+
+
+def kill_process_tree(pid: int, include_parent=True):
+  """
+  结束指定pid及其所有子进程，按顺序先子进程再父进程
+
+  参数：
+  pid (int): 要结束的进程的PID
+  include_parent (bool): 是否包含父进程，默认为True
+  """
+  check_and_install("psutil")
+  import psutil
+  try:
+    parent = psutil.Process(pid)
+  except psutil.NoSuchProcess:
+    print(f"Process {pid} 不存在")
+    return
+
+  children = parent.children(recursive=True)
+  # 先结束所有子进程
+  for p in children:
+    try:
+      print(f"Terminating child process {p.pid} ({p.name()})")
+      p.terminate()
+    except Exception as e:
+      print(f"Failed to terminate child process {p.pid}: {e}")
+
+  # 等待子进程结束
+  gone, alive = psutil.wait_procs(children, timeout=3)
+  for p in alive:
+    try:
+      print(f"Killing child process {p.pid} ({p.name()})")
+      p.kill()
+    except Exception as e:
+      print(f"Failed to kill child process {p.pid}: {e}")
+
+  # 结束父进程
+  if include_parent:
+    try:
+      print(f"Terminating parent process {parent.pid} ({parent.name()})")
+      parent.terminate()
+      parent.wait(timeout=3)
+    except psutil.NoSuchProcess:
+      pass
+    except psutil.TimeoutExpired:
+      try:
+        print(f"Killing parent process {parent.pid} ({parent.name()})")
+        parent.kill()
+      except Exception as e:
+        print(f"Failed to kill parent process {parent.pid}: {e}")
+    except Exception as e:
+      print(f"Failed to terminate parent process {parent.pid}: {e}")
+
+
+def check_and_kill_port_process_and_children(port: int):
+  check_and_install("psutil")
+  import psutil
+  """
+  检测端口占用，结束占用进程及其所有子进程
+
+  参数：
+  port (int): 要检测的端口号
+  """
+  for conn in psutil.net_connections():
+    if conn.laddr and conn.laddr.port == port:
+      pid = conn.pid
+      if pid:
+        print(f"端口 {port} 被 PID {pid} 占用，准备结束该进程及其子进程")
+        kill_process_tree(pid)
+      else:
+        print(f"端口 {port} 被占用但未找到对应 PID")
+      break
+  else:
+    print(f"端口 {port} 空闲")

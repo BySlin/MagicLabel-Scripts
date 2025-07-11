@@ -2,6 +2,7 @@ from multiprocessing import set_start_method
 from typing import Union
 
 from lib.SimpleHttpServer import createSimpleHttpServer, SimpleHttpServer
+from lib.utils import check_and_kill_port_process_and_children
 
 httpServer: Union[SimpleHttpServer, None] = None
 
@@ -11,7 +12,12 @@ def start_web_server():
   global httpServer
   from yolo import yolo_router
 
-  httpServer = createSimpleHttpServer([yolo_router], "localhost", 50018)
+  # http通讯端口
+  port = 50018
+  # 检查端口是否被占用，如果被占用则关闭进程
+  check_and_kill_port_process_and_children(port)
+  # 创建web服务器
+  httpServer = createSimpleHttpServer([yolo_router], "localhost", port)
   with httpServer:
     print("MagicLabelServerLoaded")
     httpServer.daemon_threads = True
