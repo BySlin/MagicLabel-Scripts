@@ -446,10 +446,12 @@ def predict_task_process(conn, msg_queue):
             gn = torch.tensor(im.shape)[
               [1, 0, 1, 0]
             ]  # normalization gain whwh
+            # 标注文件路径
             label_file = os.path.join(
               config_dir,
               f"{os.path.splitext(os.path.basename(image_file))[0]}.txt",
             )
+            # 如果标注文件存在则删除
             if os.path.exists(label_file):
               os.remove(label_file)
             for *xyxy, conf, cls in reversed(pred):
