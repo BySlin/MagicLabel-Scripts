@@ -41,6 +41,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
   def do_POST(self):
     self.handle_request("POST")  # 处理POST请求
 
+  def do_OPTIONS(self):
+    self.send_response(200)
+    self.end_headers()
+
   def handle_request(self, method):
     # 处理请求的通用方法
     parsed_url = urlparse(self.path)  # 解析URL
@@ -92,7 +96,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
   def end_headers(self):
     self.send_header("Access-Control-Allow-Origin", "*")
     self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-    self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+    self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, last-event-id")
     super().end_headers()
 
 
