@@ -1,5 +1,5 @@
 import os
-from multiprocessing import Queue, Pipe, Manager
+from multiprocessing import Queue, Pipe
 from pathlib import Path
 from typing import Union, TYPE_CHECKING
 
@@ -38,8 +38,6 @@ if TYPE_CHECKING:
 # SSE事件
 sse_events = ServerSentEvents()
 
-# 多进程管理器
-manager: Union[Manager, None] = None
 # 推理消息
 predict_msg_queue: Union[Queue, None] = None
 
@@ -56,10 +54,9 @@ sam2_video_predictor: Union["SAM2VideoPredictor", None] = None
 sam2_image_predictor: Union["SAM2ImagePredictor", None] = None
 
 def initialize():
-  global sse_events, manager, predict_msg_queue, predict_process, predict_process_conn, sam_model, load_ultralytics_success
+  global sse_events, predict_msg_queue, predict_process, predict_process_conn, sam_model, load_ultralytics_success
 
-  manager = Manager()
-  predict_msg_queue = manager.Queue()
+  predict_msg_queue = Queue()
 
   # 启动识别进程
   predict_process = ProcessMsgThread(
