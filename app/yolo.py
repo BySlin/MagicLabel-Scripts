@@ -280,51 +280,6 @@ def set_sam2_video_model(handler: RequestHandler):
     return {"success": False, "msg": "加载模型失败"}
 
 
-def mask_to_bbox_normalized(mask, img_width, img_height):
-  """
-  将二值mask转换成归一化的 (center_x, center_y, width, height) 边界框，归一化基于原图尺寸。
-
-  参数:
-      mask: np.ndarray, shape=(H_mask, W_mask), dtype=bool或其他，表示掩码
-      img_width: int, 原始图片宽度
-      img_height: int, 原始图片高度
-
-  返回:
-      bbox: tuple (center_x, center_y, width, height)，均归一化到[0,1]
-            如果mask为空，返回None
-  """
-  try:
-    import numpy as np
-  except ImportError:
-    return None
-
-  mask = mask.astype(bool)
-  rows = np.any(mask, axis=1)
-  cols = np.any(mask, axis=0)
-
-  if not rows.any() or not cols.any():
-    return None
-
-  y_min, y_max = np.where(rows)[0][[0, -1]]
-  x_min, x_max = np.where(cols)[0][[0, -1]]
-
-  width_mask = x_max - x_min + 1
-  height_mask = y_max - y_min + 1
-
-  center_x_mask = x_min + width_mask / 2
-  center_y_mask = y_min + height_mask / 2
-
-  # 注意：mask对应原图的大小可能不一样，这里默认mask是对原图大小的裁剪或缩放
-  # 需要知道mask相对于原图的位置和缩放关系，否则无法准确映射
-
-  # 如果mask是原图大小掩码，直接归一化
-  center_x_norm = center_x_mask / img_width
-  center_y_norm = center_y_mask / img_height
-  width_norm = width_mask / img_width
-  height_norm = height_mask / img_height
-
-  return center_x_norm, center_y_norm, width_norm, height_norm
-
 @yolo_router.register("/sam2_video_predict", method="POST")
 def sam2_video_predict(handler: RequestHandler):
   requestBody = handler.read_json()
@@ -342,7 +297,7 @@ def sam2_video_predict(handler: RequestHandler):
     return {"success": False, "msg": "SAM模型未加载"}
 
   try:
-    from sam2_utils import init_state
+    from sam2_utils import init_state, mask_to_bbox_normalized
   except ImportError:
     return {"success": False, "msg": "未安装SAM2"}
 
@@ -377,3 +332,17 @@ def sam2_video_predict(handler: RequestHandler):
 
   common.sam2_video_predictor.reset_state(inference_state)
   return {"success": True, "msg": "操作成功"}
+
+
+@yolo_router.register("/set_sam2_image_model", method="POST")
+def set_sam2_image_model(handler: RequestHandler):
+  requestBody = handler.read_json()
+  model = requestBody["model"]
+  config = requestBody["config"]
+  if is_blank(model) or is_blank(config):
+    return {"success": False, "msg": "运行参数不能为空"}
+
+  if common.set_sam2_image_model(config, model):
+    return {"success": True, "msg": "加载模型成功"}
+  else:
+    return {"success": False, "msg": "加载模型失败"}
