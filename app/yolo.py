@@ -482,8 +482,6 @@ def auto_detect(handler: RequestHandler):
       input_points = np.array([[pt[0], pt[1]] for pt in topk_points])
       input_labels = np.ones(len(input_points), dtype=np.int32)
 
-      print(f"迭代{iter_idx} 选取提示点：{input_points.tolist()}")
-
       # 通过SAM2预测分割
       common.sam2_image_predictor.set_image(cv2.cvtColor(test_img, cv2.COLOR_BGR2RGB))
       masks, scores, logits = common.sam2_image_predictor.predict(
@@ -507,7 +505,6 @@ def auto_detect(handler: RequestHandler):
       # 找mask轮廓
       contours, _ = cv2.findContours(mask_binary.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
       if len(contours) == 0:
-        print(f"迭代{iter_idx}：无有效轮廓，跳过。")
         continue
 
       # 找最小外接矩形
@@ -519,4 +516,4 @@ def auto_detect(handler: RequestHandler):
       # 用纯色覆盖目标区域
       test_img[mask_binary] = fill_color
 
-  return {"success": True, "msg": "设置特征成功"}
+  return {"success": True, "msg": "预测结束"}
