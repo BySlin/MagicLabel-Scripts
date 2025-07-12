@@ -154,7 +154,7 @@ def extract_clip_feature(img):
     import torch
     from PIL import Image
   except ImportError:
-    return
+    return None
   """单张图像提特征，保持原代码兼容（主要用于支持图）"""
   img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
   pil_img = Image.fromarray(img_rgb)
