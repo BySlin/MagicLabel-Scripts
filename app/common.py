@@ -162,4 +162,4 @@ def extract_clip_feature(img):
   with torch.no_grad():
     feat = clip_model.encode_image(inp)
     feat /= feat.norm(dim=-1, keepdim=True)
-  return feat.cpu().numpy()[0]
+  return feat

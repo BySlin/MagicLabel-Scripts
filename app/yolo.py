@@ -379,7 +379,7 @@ def set_clip_feat(handler: RequestHandler):
     x, y, w, h = box["bbox"]
     support_crop = support_img[y:y + h, x:x + w]
     support_feat = common.extract_clip_feature(support_crop)
-    cls_in_support_feat_tensor[box["clsIndex"]] = torch.from_numpy(support_feat).to("cuda")
+    cls_in_support_feat_tensor[box["clsIndex"]] = support_feat
   return {"success": True, "msg": "设置特征成功"}
 
 
@@ -470,8 +470,8 @@ def auto_detect(handler: RequestHandler):
         feats = common.clip_model.encode_image(batch)
         feats /= feats.norm(dim=-1, keepdim=True)
 
-      sims = (feats @ cls_in_support_feat_tensor[key].unsqueeze(-1)).squeeze(-1)
-      candidate_scores = sims.cpu().numpy()
+      sim_scores = feats @ cls_in_support_feat_tensor[key].T  # [N, M]
+      candidate_scores = sim_scores.cpu().numpy().squeeze()
 
       max_score = candidate_scores.max()
       if max_score < sim_threshold:
