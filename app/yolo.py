@@ -412,7 +412,7 @@ def auto_detect(handler: RequestHandler):
   test_img = cv2.imread(path)
   h_test, w_test = test_img.shape[:2]
 
-  step = requestBody.get("step", 10)
+  step = requestBody.get("step", 20)
   K = requestBody.get("k", 3)  # 多点提示数
   sim_threshold = requestBody.get("sim_threshold", 0.8)  # 相似度阈值，不满足停止
   max_iters = requestBody.get("max_iters", 10)  # 最大迭代识别目标数
