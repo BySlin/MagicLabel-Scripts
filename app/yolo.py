@@ -412,7 +412,8 @@ def auto_detect(handler: RequestHandler):
   test_img = cv2.imread(path)
   h_test, w_test = test_img.shape[:2]
 
-  step = requestBody.get("step", 20)
+  step = requestBody.get("step", 10)
+  size = requestBody.get("size", 100)
   K = requestBody.get("k", 3)  # 多点提示数
   sim_threshold = requestBody.get("sim_threshold", 0.8)  # 相似度阈值，不满足停止
   max_iters = requestBody.get("max_iters", 10)  # 最大迭代识别目标数
@@ -434,7 +435,8 @@ def auto_detect(handler: RequestHandler):
 
   for key in cls_in_support_feat_tensor:
     w, h, support_feat = cls_in_support_feat_tensor[key]
-    size = w
+    size = min(size, w)
+    step = min(step, max(w_test // w, 20))
     # 初始化填充掩码（记录已识别区域）
     filled_mask = np.zeros((h_test, w_test), dtype=np.uint8)
 
