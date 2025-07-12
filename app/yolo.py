@@ -492,15 +492,35 @@ def auto_detect(handler: RequestHandler):
       mask = masks[0]
       h, w = mask.shape[-2:]
       mask = mask.reshape(h, w, 1)
-      bbox = mask_to_bbox_normalized(mask, w_test, h_test)
-      if bbox is not None:
-        with open(f"{folderPath}/DetectLabels/{name_without_ext}.txt", "a") as f:
-          f.write(f"{key} {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}\n")
 
       mask_uint8 = (mask * 255).astype(np.uint8)
       if mask_uint8.shape != (h_test, w_test):
         mask_uint8 = cv2.resize(mask_uint8, (w_test, h_test), interpolation=cv2.INTER_NEAREST)
       mask_binary = mask_uint8 > 128
+
+      bbox = mask_to_bbox_normalized(mask, w_test, h_test)
+      if bbox is not None:
+        # 兜底相似度检测
+        x1, y1, w_box, h_box = cv2.boundingRect(mask_binary.astype(np.uint8))
+        x2, y2 = x1 + w_box, y1 + h_box
+        x1, y1 = max(0, x1), max(0, y1)
+        x2, y2 = min(w_test, x2), min(h_test, y2)
+        cropped_img = test_img[y1:y2, x1:x2]
+        if cropped_img.size == 0:
+          continue
+        cropped_img_rgb = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2RGB)
+        pil_cropped = Image.fromarray(cropped_img_rgb)
+        inp_cropped = common.clip_preprocess(pil_cropped).unsqueeze(0).to("cuda")
+        with torch.no_grad():
+          cropped_feat = common.clip_model.encode_image(inp_cropped)
+          cropped_feat /= cropped_feat.norm(dim=-1, keepdim=True)
+        sim_cropped = (cropped_feat @ cls_in_support_feat_tensor[key].T).item()
+        if sim_cropped < sim_threshold:
+          break
+
+        # 写入标签
+        with open(f"{folderPath}/DetectLabels/{name_without_ext}.txt", "a") as f:
+          f.write(f"{key} {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}\n")
 
       # 找mask轮廓
       contours, _ = cv2.findContours(mask_binary.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
