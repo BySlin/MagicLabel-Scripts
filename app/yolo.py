@@ -379,7 +379,7 @@ def set_clip_feat(handler: RequestHandler):
     x, y, w, h = box["bbox"]
     support_crop = support_img[y:y + h, x:x + w]
     support_feat = common.extract_clip_feature(support_crop)
-    cls_in_support_feat_tensor[box["clsIndex"]] = support_feat
+    cls_in_support_feat_tensor[box["clsIndex"]] = (w, h, support_feat)
   return {"success": True, "msg": "设置特征成功"}
 
 
@@ -434,6 +434,7 @@ def auto_detect(handler: RequestHandler):
     return (coord, inp, (x1, y1, x2, y2))
 
   for key in cls_in_support_feat_tensor:
+    w, h, support_feat = cls_in_support_feat_tensor[key]
     # 初始化填充掩码（记录已识别区域）
     filled_mask = np.zeros((h_test, w_test), dtype=np.uint8)
 
@@ -470,7 +471,7 @@ def auto_detect(handler: RequestHandler):
         feats = common.clip_model.encode_image(batch)
         feats /= feats.norm(dim=-1, keepdim=True)
 
-      sim_scores = feats @ cls_in_support_feat_tensor[key].T  # [N, M]
+      sim_scores = feats @ support_feat.T  # [N, M]
       candidate_scores = sim_scores.cpu().numpy().squeeze()
 
       max_score = candidate_scores.max()
@@ -514,7 +515,7 @@ def auto_detect(handler: RequestHandler):
         with torch.no_grad():
           cropped_feat = common.clip_model.encode_image(inp_cropped)
           cropped_feat /= cropped_feat.norm(dim=-1, keepdim=True)
-        sim_cropped = (cropped_feat @ cls_in_support_feat_tensor[key].T).item()
+        sim_cropped = (cropped_feat @ support_feat.T).item()
         if sim_cropped < sim_threshold:
           break
 
