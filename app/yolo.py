@@ -71,7 +71,7 @@ def predict(handler: RequestHandler):
   cwd = requestBody["cwd"]
   framework = requestBody["framework"]
   sahiSettings = requestBody["sahiSettings"]
-  skipExistsAnnotationFile = requestBody.get("skipExistsAnnotationFile", False)
+  coverMode = requestBody.get("coverMode", 0)
 
   if (
     is_blank(command)
@@ -89,7 +89,7 @@ def predict(handler: RequestHandler):
         "cwd": cwd,
         "framework": framework,
         "sahiSettings": sahiSettings,
-        "skipExistsAnnotationFile": skipExistsAnnotationFile
+        "coverMode": coverMode
       }
     )
   )

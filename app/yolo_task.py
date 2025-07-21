@@ -231,7 +231,7 @@ def predict_task_process(conn, msg_queue):
 
   def predict_thread(framework_: str, cwd: str,
                      yolo_model: Union[YOLO, AutoShape, UltralyticsDetectionModel, Yolov5DetectionModel],
-                     predict_params, sahi_settings, skip_exists_annotation_file
+                     predict_params, sahi_settings, coverMode
   ):
     try:
       os.chdir(cwd)
@@ -288,8 +288,8 @@ def predict_task_process(conn, msg_queue):
       imgsz_ = predict_params["imgsz"]
       # 输入源是否是目录
       source_is_dir = os.path.isdir(source)
-      # 输入源是目录 并且 没开启了跳过已存在标注文件 执行清空目录
-      if source_is_dir and not skip_exists_annotation_file:
+      # 输入源是目录 并且 开启了覆盖标注文件 执行清空目录
+      if source_is_dir and coverMode == 0:
         empty_dir(config_dir)
 
       # 确保目录存在
@@ -318,7 +318,7 @@ def predict_task_process(conn, msg_queue):
           + glob(os.path.join(source, "*.bmp"))
         )
         # 是否开启了跳过已存在标注文件
-        if skip_exists_annotation_file:
+        if coverMode == 1:
           image_files = [
             image_file for image_file in image_files
             if not os.path.exists(
@@ -340,6 +340,15 @@ def predict_task_process(conn, msg_queue):
           yolo_model.mask_threshold = conf_
           yolo_model.device = device_
           for i, image_file in enumerate(image_files):
+            label_file = os.path.join(
+              config_dir,
+              f"{os.path.splitext(os.path.basename(image_file))[0]}.txt",
+            )
+            if os.path.exists(label_file):
+              # 2 是追加， 如果不是追加，1 跳过 0 覆盖，如果是跳过image_files已经筛选出来了有标注文件的图片
+              if coverMode != 2:
+                os.remove(label_file)
+
             prediction_result = get_sliced_prediction(
               detection_model=yolo_model,
               image=image_file,
@@ -354,12 +363,6 @@ def predict_task_process(conn, msg_queue):
             height = prediction_result.image_height
             durations_in_seconds = prediction_result.durations_in_seconds
             annotations = prediction_result.to_coco_annotations()
-            label_file = os.path.join(
-              config_dir,
-              f"{os.path.splitext(os.path.basename(image_file))[0]}.txt",
-            )
-            if os.path.exists(label_file):
-              os.remove(label_file)
             convert_coco_json(
               annotations,
               label_file,
@@ -405,9 +408,18 @@ def predict_task_process(conn, msg_queue):
               f"{os.path.splitext(os.path.basename(result.path))[0]}.txt",
             )
             if os.path.exists(label_file):
-              if source_is_dir and skip_exists_annotation_file:
-                continue
+              if source_is_dir:
+                if coverMode == 0:
+                  # 如果是覆盖，则删除标注文件
+                  os.remove(label_file)
+                elif coverMode == 1:
+                  # 如果开启跳过标注文件，则跳过
+                  continue
+                elif coverMode == 2:
+                  # 如果是追加则不处理
+                  pass
               else:
+                # 如果不是目录，则删除标注文件
                 os.remove(label_file)
             if mode == "Cls":
               # 如果置信度大于等于阈值，则写入文件
@@ -428,8 +440,18 @@ def predict_task_process(conn, msg_queue):
           yolov5_model.classes = classes_
           yolov5_model.to(device_)
           for i, image_file in enumerate(image_files):
+            # 标注文件路径
+            label_file = os.path.join(
+              config_dir,
+              f"{os.path.splitext(os.path.basename(image_file))[0]}.txt",
+            )
+            # 如果标注文件存在则删除
+            if os.path.exists(label_file):
+              if coverMode != 2:
+                # 如果不是目录，则删除标注文件
+                os.remove(label_file)
+              
             results: Detections = yolov5_model(image_file, size=imgsz_)
-
             s, crops = "", []
             im = results.ims[0]
             pred = results.pred[0]
@@ -446,14 +468,6 @@ def predict_task_process(conn, msg_queue):
             gn = torch.tensor(im.shape)[
               [1, 0, 1, 0]
             ]  # normalization gain whwh
-            # 标注文件路径
-            label_file = os.path.join(
-              config_dir,
-              f"{os.path.splitext(os.path.basename(image_file))[0]}.txt",
-            )
-            # 如果标注文件存在则删除
-            if os.path.exists(label_file):
-              os.remove(label_file)
             for *xyxy, conf, cls in reversed(pred):
               xywh = (
                 (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn)
@@ -542,7 +556,7 @@ def predict_task_process(conn, msg_queue):
               model,
               params,
               event_data["sahiSettings"],
-              event_data["skipExistsAnnotationFile"],
+              event_data["coverMode"],
             ),
           ).start()
       elif event_ == "stop_predict":
