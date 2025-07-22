@@ -1,5 +1,6 @@
 import os
 import sys
+from unittest.mock import patch
 
 # ultralytics 加载类型 pip 或 custom
 ultralytics_load_type = os.environ.get("ultralyticsLoadType", "pip")
@@ -163,7 +164,8 @@ def main():
     if len(imgsz) == 1:
       imgsz = [imgsz[0], imgsz[0]]
 
-  model_predict(task, framework, model, source, conf, iou, imgsz)
+  with patch('ultralytics.utils.checks.ONLINE', True):
+    model_predict(task, framework, model, source, conf, iou, imgsz)
 
 
 if __name__ == "__main__":
