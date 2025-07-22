@@ -1,5 +1,6 @@
 import os
 import sys
+from unittest.mock import patch
 
 from utils import check_and_install
 
@@ -15,14 +16,16 @@ if __name__ == "__main__":
   if any(arg == 'format=engine' for arg in sys.argv):
     check_and_install("tensorrt")
 
-  from ultralytics.utils.callbacks.base import default_callbacks
-  from ultralytics.cfg import entrypoint
-
-  def on_export_start(export_self):
-    if hasattr(export_self, "metadata") and export_self.metadata:
-      export_self.metadata["ExportUtils"] = "MagicLabel"
+  with patch('ultralytics.utils.is_online', return_value=True):
+    from ultralytics.utils.callbacks.base import default_callbacks
+    from ultralytics.cfg import entrypoint
 
 
-  default_callbacks.get("on_export_start").append(on_export_start)
+    def on_export_start(export_self):
+      if hasattr(export_self, "metadata") and export_self.metadata:
+        export_self.metadata["ExportUtils"] = "MagicLabel"
 
-  entrypoint()
+
+    default_callbacks.get("on_export_start").append(on_export_start)
+
+    entrypoint()
