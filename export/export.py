@@ -16,7 +16,7 @@ if __name__ == "__main__":
   if any(arg == 'format=engine' for arg in sys.argv):
     check_and_install("tensorrt")
 
-  with patch('ultralytics.utils.is_online', return_value=True):
+  with patch('ultralytics.utils.checks.ONLINE', True):
     from ultralytics.utils.callbacks.base import default_callbacks
     from ultralytics.cfg import entrypoint
 
