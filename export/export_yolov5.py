@@ -1,5 +1,6 @@
 import os
 import sys
+from unittest.mock import patch
 
 from utils import check_and_install
 
@@ -16,7 +17,8 @@ if __name__ == "__main__":
   if any(arg == 'engine' for arg in sys.argv):
     check_and_install("tensorrt")
 
-  from yolov5.export import parse_opt, main as export_main
+  with patch('ultralytics.utils.checks.ONLINE', True):
+    from yolov5.export import parse_opt, main as export_main
 
-  opt = parse_opt()
-  export_main(opt)
+    opt = parse_opt()
+    export_main(opt)

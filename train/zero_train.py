@@ -1,6 +1,5 @@
 import argparse
-
-import lightly_train
+from unittest.mock import patch
 
 
 def main():
@@ -19,14 +18,17 @@ def main():
   epochs = args.epochs
   batch_size = args.batch_size
   resume_interrupted = args.resume_interrupted
-  lightly_train.train(
-    out=out,
-    data=data,
-    model=model,
-    epochs=epochs,
-    batch_size=batch_size,
-    resume_interrupted=resume_interrupted
-  )
+
+  with patch('ultralytics.utils.checks.ONLINE', True):
+    import lightly_train
+    lightly_train.train(
+      out=out,
+      data=data,
+      model=model,
+      epochs=epochs,
+      batch_size=batch_size,
+      resume_interrupted=resume_interrupted
+    )
 
 
 if __name__ == '__main__':
