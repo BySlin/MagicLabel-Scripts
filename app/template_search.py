@@ -4,7 +4,7 @@ import numpy as np
 
 class TemplateSearch:
     @staticmethod
-    def find_image(source_image, template_image, threshold=0.9, limit=10, method=1, x=0, y=0, ex=0, ey=0):
+    def find_image(source_image, template_image, threshold=0.95, limit=10, method=1, x=0, y=0, ex=0, ey=0):
         """
         模板匹配找图（增强版）
 

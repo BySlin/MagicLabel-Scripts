@@ -22,6 +22,9 @@ def start_find_template(handler: RequestHandler):
     template_dir = data["templateDir"]
     # 输入图片路径
     folderPath = data["folderPath"]
+    threshold = data["threshold"]
+    limit = data["limit"]
+    method = data["method"]
     if is_blank(template_dir):
         return {"success": False, "msg": "未输入模板目录"}
 
@@ -74,7 +77,7 @@ def start_find_template(handler: RequestHandler):
                 clsIndex = template_parts[1]
             else:
                 clsIndex = "0"
-            results = TemplateSearch.find_image(image_file, template_image_file)
+            results = TemplateSearch.find_image(image_file, template_image_file, threshold, limit, method)
             for result in results:
                 # 构建标签行
                 label_line = f"{clsIndex} {result['n_centerX']} {result['n_centerY']} {result['n_width']} {result['n_height']}"
