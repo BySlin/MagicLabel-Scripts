@@ -6,7 +6,7 @@ class TemplateSearch:
     @staticmethod
     def find_image(source_image, template_image, threshold=0.95, limit=10, method=1, x=0, y=0, ex=0, ey=0):
         """
-        模板匹配找图（增强版）
+        模板匹配找图
 
         Args:
             source_image: 大图片（OpenCV图像对象或文件路径）
