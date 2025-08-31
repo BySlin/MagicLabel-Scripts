@@ -210,18 +210,30 @@ class TemplateSearch:
         """
         计算标准化的confidence值
         """
+        confidence = 0.0
+
         if method == 1:  # TM_SQDIFF_NORMED - 值越小越好，范围是 [0, 1]
-            return max(0.0, 1.0 - raw_value)
+            confidence = max(0.0, 1.0 - raw_value)
 
         elif method == 3:  # TM_CCORR_NORMED - 值越大越好，范围是 [0, 1]
-            return raw_value
+            confidence = raw_value
 
         elif method == 5:  # TM_CCOEFF_NORMED - 值越大越好，范围是 [-1, 1]
             # 负值表示反相关，直接返回0
             if raw_value <= 0:
-                return 0.0
+                confidence = 0.0
             # 将 [0, 1] 直接作为confidence
-            return min(1.0, max(0.0, raw_value))
+            else:
+                confidence = min(1.0, max(0.0, raw_value))
 
         else:
-            return max(0.0, min(1.0, raw_value))
+            confidence = max(0.0, min(1.0, raw_value))
+
+        # 重新映射置信度值
+        # 将0.9-1.0区间的值重新映射为0-1，低于0.9的值直接为0
+        if confidence >= 0.9:
+            # 将[0.9, 1.0]映射到[0, 1]
+            return (confidence - 0.9) / 0.1
+        else:
+            # 低于0.9的值直接为0
+            return 0.0
