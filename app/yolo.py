@@ -4,6 +4,7 @@ import json
 import os.path
 import threading
 import time
+from glob import glob
 from typing import Union, TYPE_CHECKING
 
 import common
@@ -540,3 +541,43 @@ def auto_detect(handler: RequestHandler):
       test_img[mask_binary] = fill_color
 
   return {"success": True, "msg": "预测结束"}
+
+
+@yolo_router.register("/find_temp_detect", method="POST")
+def find_temp_detect(handler: RequestHandler):
+    try:
+        import cv2
+        import numpy as np
+        from template_search import TemplateSearch
+    except ImportError:
+        return {"success": False, "msg": "未安装opencv-python"}
+    data = handler.get_request_body()
+    template_dir = data["templateDir"]
+    # 输入图片路径
+    folderPath = data["folderPath"]
+    if is_blank(template_dir):
+        return {"success": False, "msg": "未输入模板目录"}
+
+    if is_blank(folderPath):
+        return {"success": False, "msg": "未输入图片目录"}
+
+    template_image_files = (
+            glob(os.path.join(template_dir, "*.jpg"))
+            + glob(os.path.join(template_dir, "*.jpeg"))
+            + glob(os.path.join(template_dir, "*.png"))
+            + glob(os.path.join(template_dir, "*.bmp"))
+    )
+
+    image_files = (
+            glob(os.path.join(folderPath, "*.jpg"))
+            + glob(os.path.join(folderPath, "*.jpeg"))
+            + glob(os.path.join(folderPath, "*.png"))
+            + glob(os.path.join(folderPath, "*.bmp"))
+    )
+    for image_file in image_files:
+        for template_image_file in template_image_files:
+            results = TemplateSearch.find_image(image_file, template_image_file)
+            if results is not None:
+                print(results)
+
+    return {"success": True, "msg": "找图结束"}
