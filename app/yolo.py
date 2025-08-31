@@ -551,7 +551,7 @@ def find_template_detect(handler: RequestHandler):
         from template_search import TemplateSearch
     except ImportError:
         return {"success": False, "msg": "未安装opencv-python"}
-    data = handler.get_request_body()
+    data = handler.read_json()
     template_dir = data["templateDir"]
     # 输入图片路径
     folderPath = data["folderPath"]
