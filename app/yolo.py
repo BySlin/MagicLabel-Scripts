@@ -574,7 +574,24 @@ def find_template_detect(handler: RequestHandler):
             + glob(os.path.join(folderPath, "*.png"))
             + glob(os.path.join(folderPath, "*.bmp"))
     )
+    # 确保DetectLabels目录存在
+    detect_labels_dir = os.path.join(folderPath, "DetectLabels")
+    os.makedirs(detect_labels_dir, exist_ok=True)
+    
+    def read_existing_labels(file_path):
+        """读取现有标签文件内容"""
+        if not os.path.exists(file_path):
+            return set()
+        with open(file_path, "r") as f:
+            return set(line.strip() for line in f.readlines() if line.strip())
+    
     for image_file in image_files:
+        image_basename = os.path.splitext(os.path.basename(image_file))[0]
+        label_file_path = os.path.join(detect_labels_dir, f"{image_basename}.txt")
+        
+        # 读取现有标签内容
+        existing_labels = read_existing_labels(label_file_path)
+        
         for template_image_file in template_image_files:
             # 获取template_image_file的文件名
             template_image_file_name = os.path.basename(template_image_file)
@@ -586,9 +603,12 @@ def find_template_detect(handler: RequestHandler):
                 clsIndex = "0"
             results = TemplateSearch.find_image(image_file, template_image_file)
             for result in results:
-                with open(f"{folderPath}/DetectLabels/{os.path.splitext(os.path.basename(image_file))[0]}.txt",
-                          "a") as f:
-                    f.write(
-                        f"{clsIndex} {result['n_centerX']} {result['n_centerY']} {result['n_width']} {result['n_height']}\n")
+                # 构建标签行
+                label_line = f"{clsIndex} {result['n_centerX']} {result['n_centerY']} {result['n_width']} {result['n_height']}"
+                # 检查是否已存在相同标签，避免重复写入
+                if label_line not in existing_labels:
+                    with open(label_file_path, "a") as f:
+                        f.write(f"{label_line}\n")
+                    existing_labels.add(label_line)
 
     return {"success": True, "msg": "找图结束"}
