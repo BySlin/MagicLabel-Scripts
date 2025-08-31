@@ -111,7 +111,8 @@ class TemplateSearch:
         return found_rects
 
     @staticmethod
-    def _perform_template_matching(result, method, threshold, limit, template_mat, roi_x, roi_y, source_width, source_height):
+    def _perform_template_matching(result, method, threshold, limit, template_mat, roi_x, roi_y, source_width,
+                                   source_height):
         """
         执行模板匹配搜索
 
@@ -151,11 +152,8 @@ class TemplateSearch:
             # 修正 confidence 计算逻辑
             confidence = TemplateSearch._calculate_confidence(raw_match_value, method, template_mat)
 
-            # 添加匹配质量验证机制
-            is_high_quality_match = TemplateSearch._validate_match_quality(raw_match_value, method, confidence)
-
             # 检查是否满足阈值条件和质量要求
-            meets_threshold = confidence >= threshold and is_high_quality_match
+            meets_threshold = confidence >= threshold
 
             if not meets_threshold:
                 break
@@ -212,51 +210,13 @@ class TemplateSearch:
         """
         计算标准化的confidence值
         """
-        # 计算模板图像的总像素数
-        template_total_pixels = template_mat.shape[0] * template_mat.shape[1]
-
-        if method == 0:  # TM_SQDIFF - 值越小越好，范围通常是 [0, +∞)
-            # 对于SQDIFF，完美匹配时值为0，差异越大值越大
-            # 使用更保守的归一化方法，避免虚假高置信度
-            max_reasonable_value = 255.0 * 255.0 * template_total_pixels * 0.1  # 只考虑10%的最大可能值
-            if raw_value > max_reasonable_value:
-                return 0.0  # 差异过大，直接返回0
-            normalized_value = raw_value / max_reasonable_value
-            return max(0.0, 1.0 - normalized_value)
-
-        elif method == 1:  # TM_SQDIFF_NORMED - 值越小越好，范围是 [0, 1]
-            # 已经归一化，但需要更严格的阈值
-            if raw_value > 0.5:
-                return 0.0  # 差异过大，直接返回0
+        if method == 1:  # TM_SQDIFF_NORMED - 值越小越好，范围是 [0, 1]
             return max(0.0, 1.0 - raw_value)
 
-        elif method == 2:  # TM_CCORR - 值越大越好，范围是 [0, +∞)
-            # CCORR方法容易产生虚假高值，需要更严格的处理
-            # 计算理论最大值并使用更保守的归一化
-            template_mean = 127.5  # 假设图像均值
-            theoretical_max = template_mean * template_mean * template_total_pixels
-            normalized_value = raw_value / theoretical_max
-            # 只有当归一化值超过0.8时才认为是有效匹配
-            return normalized_value > 0.8 and min(1.0, normalized_value) or 0.0
-
         elif method == 3:  # TM_CCORR_NORMED - 值越大越好，范围是 [0, 1]
-            # 已经归一化，但CCORR_NORMED容易产生虚假高值
-            # 使用更严格的阈值判断
-            return raw_value > 0.85 and raw_value or 0.0
-
-        elif method == 4:  # TM_CCOEFF - 值越大越好，可能为负值
-            # CCOEFF方法最可靠，但仍需要合理的归一化
-            # 负值表示反相关，直接返回0
-            if raw_value <= 0:
-                return 0.0
-            # 使用模板的标准差来估算最大可能值
-            template_std = 64.0  # 假设标准差
-            theoretical_max = template_std * template_std * template_total_pixels
-            normalized_value = raw_value / theoretical_max
-            return min(1.0, max(0.0, normalized_value))
+            return raw_value
 
         elif method == 5:  # TM_CCOEFF_NORMED - 值越大越好，范围是 [-1, 1]
-            # 这是最可靠的方法，已经归一化
             # 负值表示反相关，直接返回0
             if raw_value <= 0:
                 return 0.0
@@ -265,41 +225,3 @@ class TemplateSearch:
 
         else:
             return max(0.0, min(1.0, raw_value))
-
-    @staticmethod
-    def _validate_match_quality(raw_value, method, confidence):
-        """
-        验证匹配质量，过滤虚假匹配
-        """
-        # 基础质量检查：置信度必须大于0
-        if confidence <= 0.0:
-            return False
-
-        if method == 0:  # TM_SQDIFF
-            # 对于SQDIFF，原始值应该相对较小
-            # 如果原始值过大，说明差异很大，不是好的匹配
-            return raw_value < 1000000.0 and confidence > 0.1
-
-        elif method == 1:  # TM_SQDIFF_NORMED
-            # 归一化的SQDIFF，原始值应该小于0.3
-            return raw_value < 0.3 and confidence > 0.1
-
-        elif method == 2:  # TM_CCORR
-            # CCORR容易产生虚假高值，需要严格验证
-            # 原始值必须足够大，且置信度必须很高
-            return raw_value > 100000.0 and confidence > 0.8
-
-        elif method == 3:  # TM_CCORR_NORMED
-            # 归一化的CCORR，原始值必须很高
-            return raw_value > 0.85 and confidence > 0.8
-
-        elif method == 4:  # TM_CCOEFF
-            # CCOEFF是最可靠的方法，但仍需要正值
-            return raw_value > 0 and confidence > 0.3
-
-        elif method == 5:  # TM_CCOEFF_NORMED
-            # 最可靠的方法，原始值必须为正且相对较高
-            return raw_value > 0.3 and confidence > 0.3
-
-        else:
-            return confidence > 0.5
