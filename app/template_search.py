@@ -138,11 +138,6 @@ class TemplateSearch:
         # 注意：mask中255表示可用区域，0表示屏蔽区域
         used_mask = np.ones(result.shape, dtype=np.uint8) * 255  # 初始化为全部可用
 
-        # 首先获取全局最佳匹配值用于调试
-        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-        global_best_value = min_val if is_inverted_method else max_val
-        global_best_point = min_loc if is_inverted_method else max_loc
-
         for i in range(int(limit)):
             # 应用mask来查找下一个最佳匹配
             min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result, used_mask)
@@ -176,10 +171,10 @@ class TemplateSearch:
                 "width": template_mat.shape[1],
                 "height": template_mat.shape[0],
                 "confidence": confidence,
-                "normalized_x": absolute_x / source_width,
-                "normalized_y": absolute_y / source_height,
-                "normalized_width": template_mat.shape[1] / source_width,
-                "normalized_height": template_mat.shape[0] / source_height,
+                "n_x": absolute_x / source_width,
+                "n_y": absolute_y / source_height,
+                "n_width": template_mat.shape[1] / source_width,
+                "n_height": template_mat.shape[0] / source_height,
             }
 
             found_rects.append(rect)
