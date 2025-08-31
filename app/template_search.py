@@ -175,6 +175,10 @@ class TemplateSearch:
                 "n_y": absolute_y / source_height,
                 "n_width": template_mat.shape[1] / source_width,
                 "n_height": template_mat.shape[0] / source_height,
+                "centerX": int(absolute_x + template_mat.shape[1] / 2),
+                "centerY": int(absolute_y + template_mat.shape[0] / 2),
+                "n_centerX": (absolute_x + template_mat.shape[1] / 2) / source_width,
+                "n_centerY": (absolute_y + template_mat.shape[0] / 2) / source_height,
             }
 
             found_rects.append(rect)
