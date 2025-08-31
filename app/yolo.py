@@ -576,8 +576,19 @@ def find_template_detect(handler: RequestHandler):
     )
     for image_file in image_files:
         for template_image_file in template_image_files:
+            # 获取template_image_file的文件名
+            template_image_file_name = os.path.basename(template_image_file)
+            # 文件名按下划线分割
+            template_parts = template_image_file_name.split('_')
+            if len(template_parts) > 0:
+                clsIndex = template_parts[1]
+            else:
+                clsIndex = "0"
             results = TemplateSearch.find_image(image_file, template_image_file)
-            if results is not None:
-                print(results)
+            for result in results:
+                with open(f"{folderPath}/DetectLabels/{os.path.splitext(os.path.basename(image_file))[0]}.txt",
+                          "a") as f:
+                    f.write(
+                        f"{clsIndex} {result['n_centerX']} {result['n_centerY']} {result['n_width']} {result['n_height']}\n")
 
     return {"success": True, "msg": "找图结束"}

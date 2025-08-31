@@ -303,9 +303,3 @@ class TemplateSearch:
 
         else:
             return confidence > 0.5
-
-
-# 使用示例
-if __name__ == "__main__":
-    results = TemplateSearch.find_image("1000.jpg", "1756632668210_16.jpg", threshold=0.9, limit=5)
-    print(results)
