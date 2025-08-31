@@ -38,14 +38,24 @@ def start_find_template(handler: RequestHandler):
             + glob(os.path.join(template_dir, "*.bmp"))
     )
 
-    image_files = (
+    # 判断folderPath是文件还是目录
+    if os.path.isfile(folderPath):
+        # 如果是文件，直接使用该文件
+        image_files = [folderPath]
+        # DetectLabels目录放在文件所在的目录下
+        detect_labels_dir = os.path.join(os.path.dirname(folderPath), "DetectLabels")
+    else:
+        # 如果是目录，搜索目录下的图片文件
+        image_files = (
             glob(os.path.join(folderPath, "*.jpg"))
             + glob(os.path.join(folderPath, "*.jpeg"))
             + glob(os.path.join(folderPath, "*.png"))
             + glob(os.path.join(folderPath, "*.bmp"))
-    )
+        )
+        # DetectLabels目录放在指定目录下
+        detect_labels_dir = os.path.join(folderPath, "DetectLabels")
+
     # 确保DetectLabels目录存在
-    detect_labels_dir = os.path.join(folderPath, "DetectLabels")
     os.makedirs(detect_labels_dir, exist_ok=True)
 
     def read_existing_labels(file_path):
@@ -72,12 +82,14 @@ def start_find_template(handler: RequestHandler):
             # 获取template_image_file的文件名
             template_image_file_name = os.path.basename(template_image_file)
             # 文件名按下划线分割
-            template_parts = template_image_file_name.split('_')
+            template_parts = template_image_file_name.split("_")
             if len(template_parts) > 0:
                 clsIndex = template_parts[1]
             else:
                 clsIndex = "0"
-            results = TemplateSearch.find_image(image_file, template_image_file, threshold, limit, method)
+            results = TemplateSearch.find_image(
+                image_file, template_image_file, threshold, limit, method
+            )
             for result in results:
                 # 构建标签行
                 label_line = f"{clsIndex} {result['n_centerX']} {result['n_centerY']} {result['n_width']} {result['n_height']}"
