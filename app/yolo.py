@@ -543,8 +543,8 @@ def auto_detect(handler: RequestHandler):
   return {"success": True, "msg": "预测结束"}
 
 
-@yolo_router.register("/find_temp_detect", method="POST")
-def find_temp_detect(handler: RequestHandler):
+@yolo_router.register("/find_template_detect", method="POST")
+def find_template_detect(handler: RequestHandler):
     try:
         import cv2
         import numpy as np
