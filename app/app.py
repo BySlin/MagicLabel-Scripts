@@ -11,13 +11,14 @@ httpServer: Union[SimpleHttpServer, None] = None
 def start_web_server():
   global httpServer
   from yolo import yolo_router
+  from find_image import image_router
 
   # http通讯端口
   port = 50018
   # 检查端口是否被占用，如果被占用则关闭进程
   check_and_kill_port_process_and_children(port)
   # 创建web服务器
-  httpServer = createSimpleHttpServer([yolo_router], "localhost", port)
+  httpServer = createSimpleHttpServer([yolo_router, image_router], "localhost", port)
   with httpServer:
     print("MagicLabelServerLoaded")
     httpServer.serve_forever()
