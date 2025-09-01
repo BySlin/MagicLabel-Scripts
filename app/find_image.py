@@ -198,6 +198,8 @@ def start_find_template(handler: RequestHandler):
         with open(file_path, "r") as f:
             return set(line.strip() for line in f.readlines() if line.strip())
 
+    write_len = 0
+
     for image_file in image_files:
         if is_stop:
             is_stop = False
@@ -265,6 +267,7 @@ def start_find_template(handler: RequestHandler):
         if all_results:
             # 执行按类别NMS，IOU阈值设为0.5
             keep_indices = nms_by_class(all_results, all_cls_indices, nms_threshold)
+            write_len += len(keep_indices)
 
             # 清空标签文件
             with open(label_file_path, "w") as f:
@@ -279,7 +282,7 @@ def start_find_template(handler: RequestHandler):
                 with open(label_file_path, "a") as f:
                     f.write(f"{label_line}\n")
 
-    return {"success": True, "msg": "找图结束"}
+    return {"success": True, "msg": "找图结束", "data": {"writeLen": write_len}}
 
 
 @image_router.register("/stop_find_template", method="POST")
