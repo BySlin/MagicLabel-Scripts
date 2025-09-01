@@ -249,9 +249,9 @@ def start_find_template(handler: RequestHandler):
             # 文件名按下划线分割
             template_parts = template_image_file_name.split("_")
             if len(template_parts) > 0:
-                clsIndex = template_parts[1]
+                cls_index = template_parts[1]
             else:
-                clsIndex = "0"
+                cls_index = "0"
             results = TemplateSearch.find_image(
                 image_file, template_image_file, template_thresholds[i], limit, method
             )
@@ -259,7 +259,7 @@ def start_find_template(handler: RequestHandler):
             # 保存结果和类别索引
             for result in results:
                 all_results.append(result)
-                all_cls_indices.append(clsIndex)
+                all_cls_indices.append(cls_index)
 
         # 如果有检测结果，执行按类别NMS去重
         if all_results:
@@ -273,9 +273,9 @@ def start_find_template(handler: RequestHandler):
             # 重新保存NMS后的结果（包括已有的和新检测的）
             for idx in keep_indices:
                 result = all_results[idx]
-                clsIndex = all_cls_indices[idx]
+                cls_index = all_cls_indices[idx]
                 # 构建标签行
-                label_line = f"{clsIndex} {result['n_centerX']} {result['n_centerY']} {result['n_width']} {result['n_height']}"
+                label_line = f"{cls_index} {result['n_centerX']} {result['n_centerY']} {result['n_width']} {result['n_height']}"
                 with open(label_file_path, "a") as f:
                     f.write(f"{label_line}\n")
 
