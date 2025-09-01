@@ -151,41 +151,42 @@ def start_find_template(handler: RequestHandler):
     except ImportError:
         return {"success": False, "msg": "未安装opencv-python"}
     data = handler.read_json()
-    template_dir = data["templateDir"]
+    template_image_files = data["templateFiles"]
+    template_thresholds = data["templateThresholds"]
     # 输入图片路径
-    folderPath = data["folderPath"]
-    threshold = data["threshold"]
+    folder_path = data["folderPath"]
+    nms_threshold = data["nmsThreshold"]
     limit = data["limit"]
     method = data["method"]
-    if is_blank(template_dir):
-        return {"success": False, "msg": "未输入模板目录"}
 
-    if is_blank(folderPath):
+    if len(template_image_files) == 0:
+        return {"success": False, "msg": "未输入模板文件"}
+
+    if len(template_thresholds) == 0:
+        return {"success": False, "msg": "未输入模板阈值"}
+
+    if len(template_image_files) != len(template_thresholds):
+        return {"success": False, "msg": "模板文件和阈值数量不一致"}
+
+    if is_blank(folder_path):
         return {"success": False, "msg": "未输入图片目录"}
 
-    template_image_files = (
-            glob(os.path.join(template_dir, "*.jpg"))
-            + glob(os.path.join(template_dir, "*.jpeg"))
-            + glob(os.path.join(template_dir, "*.png"))
-            + glob(os.path.join(template_dir, "*.bmp"))
-    )
-
     # 判断folderPath是文件还是目录
-    if os.path.isfile(folderPath):
+    if os.path.isfile(folder_path):
         # 如果是文件，直接使用该文件
-        image_files = [folderPath]
+        image_files = [folder_path]
         # DetectLabels目录放在文件所在的目录下
-        detect_labels_dir = os.path.join(os.path.dirname(folderPath), "DetectLabels")
+        detect_labels_dir = os.path.join(os.path.dirname(folder_path), "DetectLabels")
     else:
         # 如果是目录，搜索目录下的图片文件
         image_files = (
-                glob(os.path.join(folderPath, "*.jpg"))
-                + glob(os.path.join(folderPath, "*.jpeg"))
-                + glob(os.path.join(folderPath, "*.png"))
-                + glob(os.path.join(folderPath, "*.bmp"))
+                glob(os.path.join(folder_path, "*.jpg"))
+                + glob(os.path.join(folder_path, "*.jpeg"))
+                + glob(os.path.join(folder_path, "*.png"))
+                + glob(os.path.join(folder_path, "*.bmp"))
         )
         # DetectLabels目录放在指定目录下
-        detect_labels_dir = os.path.join(folderPath, "DetectLabels")
+        detect_labels_dir = os.path.join(folder_path, "DetectLabels")
 
     # 确保DetectLabels目录存在
     os.makedirs(detect_labels_dir, exist_ok=True)
@@ -239,7 +240,7 @@ def start_find_template(handler: RequestHandler):
                 all_results.append(result)
                 all_cls_indices.append(cls_index)
 
-        for template_image_file in template_image_files:
+        for i, template_image_file in enumerate(template_image_files):
             if is_stop:
                 is_stop = False
                 return {"success": True, "msg": "停止找图成功"}
@@ -252,7 +253,7 @@ def start_find_template(handler: RequestHandler):
             else:
                 clsIndex = "0"
             results = TemplateSearch.find_image(
-                image_file, template_image_file, threshold, limit, method
+                image_file, template_image_file, template_thresholds[i], limit, method
             )
 
             # 保存结果和类别索引
@@ -263,7 +264,7 @@ def start_find_template(handler: RequestHandler):
         # 如果有检测结果，执行按类别NMS去重
         if all_results:
             # 执行按类别NMS，IOU阈值设为0.5
-            keep_indices = nms_by_class(all_results, all_cls_indices, 0.5)
+            keep_indices = nms_by_class(all_results, all_cls_indices, nms_threshold)
 
             # 清空标签文件
             with open(label_file_path, "w") as f:
